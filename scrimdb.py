@@ -4,6 +4,7 @@ from pymongo import MongoClient
 import logging
 from dotenv import load_dotenv
 import requests
+import lolapi_data as lol
 
 #client = MongoClient(os.getenv('MONGO_URI'))
 
@@ -124,3 +125,17 @@ def get_summoner_id(summoner_name, region="euw1"):
         return "INVALID"
 
     return str(r.json()['id'])
+
+def rankedinfo_command(author):
+    if not is_verified(author):
+        return {"status": "not_verified"}
+
+    disc_id = author.id
+    result = collection.find_one({"discord_id": disc_id})
+
+    if result is None:
+        return {"status": "error"}
+
+    data = lol.get_info(result["summoner_id"])
+    return {"status": "success", "data": data}
+

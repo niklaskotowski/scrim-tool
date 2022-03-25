@@ -1,8 +1,7 @@
-import logging
-
 import discord
 from discord.ext import commands
 import scrimdb as db
+import message_helper as msg
 import logging
 
 
@@ -29,7 +28,7 @@ class UserCommands(commands.Cog, name="UserCommands"):
 
         if status == "created":
             send_msg = f"Your Discord account has been linked to Summoner '{result['summoner_name']}'.\n" \
-                   f"To verify it's you please enter the following code:\n" \
+                   f"To verify that this account belong to you please enter the following code:\n" \
                    f"{result['verify']}\n" \
                    f"You can enter this code in the League of Legends settings under 'Verification'."
             await ctx.author.send(send_msg)
@@ -44,11 +43,21 @@ class UserCommands(commands.Cog, name="UserCommands"):
         if status == "invalid":
             await ctx.author.send(f"Summoner '{result['summoner_name']}' does not exist on EUW.")
 
-
     @link.error
     async def link_error(self, ctx, error):
         if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
             await ctx.author.send(f"Error: You need to provide your League Summoner Name\nUsage: !link <SummonerName>")
+
+    @commands.command(name="rankedinfo")
+    async def rankedinfo(self, ctx):
+        result = db.rankedinfo_command(ctx.author)
+        status = result['status']
+
+        if status == "success":
+            await ctx.author.send(msg.command_rankedinfo(result['data']))
+
+
+
 
 
 def setup(bot):

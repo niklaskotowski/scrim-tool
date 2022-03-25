@@ -13,13 +13,13 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(leve
                     ])
 
 load_dotenv()
-RITO_API = os.getenv('RITO_API')
+RIOT_API = os.getenv('RIOT_API')
 
-cass.set_riot_api_key(RITO_API)
+cass.set_riot_api_key(RIOT_API)
 
 
 def get_summ_data(name, region="EUW"):
-    summoner = cass.get_summoner(name=name, region=region).id
+    summoner = cass.get_summoner(name=name, region=region)
     get_queues(summoner)
 
 def get_queue_info(queue):
@@ -75,7 +75,7 @@ def print_queue_info(queue_info, queue_name, summoner_name):
 #print(uuid.uuid4())
 #print(uuid.uuid4())
 #print(uuid.uuid4())
-#get_summ_data("Cpt Aw")
+get_summ_data("Cpt Aw")
 #get_summ_data("Secr3t")
 #get_summ_data("Diviine")
 #get_summ_data("EarnAce")
