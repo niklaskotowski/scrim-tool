@@ -12,10 +12,18 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 help_command = commands.DefaultHelpCommand(
     no_category = 'Commands'
 )
-includes = ['Cogs.MainUtility']
+includes = ['Cogs.MainUtility', 'Cogs.TeamData', 'Cogs.UserCommands']
 desc = "Manage your League of Legends Scrims with this application. Credits JohanLohr"
 
-bot = Bot(command_prefix='?', description=desc, help_command=help_command)
+bot = Bot(command_prefix='!', description=desc, help_command=help_command)
+
+# !link <SummonerName> - Verbinden von League Account -> UUID mit der man sich verifiziert
+# Bei jedem Aufruf checken ob verified -> Ansonsten bescheid geben dass man das machen soll
+# !team_create <Name> - Checken ob es schon vorhanden ist
+# !team_invite <DiscordName>
+# !team_join <TeamName>
+# !team_Search
+# !user_info
 
 
 

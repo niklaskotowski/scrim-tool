@@ -21,6 +21,7 @@ collection = db.users
 
 def unlink_command(author):
     result = collection.delete_many({"discord_id": author.id})
+    logging.info(f"Deleted {result.deleted_count} Links for {author}")
     return result.deleted_count
 
 def link_command(summoner_name, author):

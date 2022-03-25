@@ -3,6 +3,7 @@ import logging
 import discord
 from discord.ext import commands
 import scrimdb as db
+import logging
 
 
 class UserCommands(commands.Cog, name="UserCommands"):
@@ -12,7 +13,7 @@ class UserCommands(commands.Cog, name="UserCommands"):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print("Log:", self.bot.user)
+        logging.info("User Commands loaded")
 
     @commands.command(name="unlink")
     async def unlink(self, ctx):
