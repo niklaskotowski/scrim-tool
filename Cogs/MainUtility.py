@@ -11,6 +11,11 @@ class MainUtility(commands.Cog, name="MainClass"):
     async def on_ready(self):
         print("Log:", self.bot.user)
 
+    @commands.command(name="hw")
+    async def hw(self, ctx):
+        print("Hello Schwanz.")
+        await ctx.author.send("BASTARD")
+
 
 def setup(bot):
     bot.add_cog(MainUtility(bot))
