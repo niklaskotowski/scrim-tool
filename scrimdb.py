@@ -31,9 +31,10 @@ def link_command(summoner_name, author):
     result = collection.find_one({"discord_id": disc_id})
 
     if result is not None:
+        now_verified = False
         if not result['verified']:
-            check_verification(author)
-        if result['verified']:
+            now_verified = check_verification(author)
+        if result['verified'] or now_verified:
             logging.info(f"{disc_name} already has verified Summoner '{result['summoner_name']}'")
             return {"status": "verified", "summoner_name": result['summoner_name']}
         return {"status": "created", "verify": result['verification_id'], "summoner_name": result['summoner_name']}
@@ -70,6 +71,9 @@ def check_verification(author, region="euw1"):
 
     if result is None:
         return False
+
+    if result['verified']:
+        return True
 
     URL = f"https://{region}.api.riotgames.com/lol/platform/v4/third-party-code" \
           f"/by-summoner/{result['summoner_id']}?api_key={os.getenv('RIOT_API')}"
