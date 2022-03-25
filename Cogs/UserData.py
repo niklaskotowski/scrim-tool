@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 from random import randint
 #Step 1: Connect to MongoDB - Note: Change connection string as needed
-client = MongoClient("mongodb+srv://ScrimDataUser:EeiF9FkM58bwwER@scrimdata.lpt7u.mongodb.net/ScrimData?retryWrites=true&w=majority", 27017)
+
 db = client['playerbase']
 #Step 2: Create sample data
 name = 'Diviine'
