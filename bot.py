@@ -12,7 +12,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 help_command = commands.DefaultHelpCommand(
     no_category = 'Commands'
 )
-includes = ['Cogs.MainUtility', 'Cogs.TeamData', 'Cogs.UserCommands']
+includes = ['Cogs.MainUtility', 'Cogs.UserCommands', 'Cogs.TeamCommands']
 desc = "Manage your League of Legends Scrims with this application. Credits JohanLohr"
 
 bot = Bot(command_prefix='!', description=desc, help_command=help_command)

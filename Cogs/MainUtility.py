@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-
+import scrimdb as db
 
 class MainUtility(commands.Cog, name="MainClass"):
     def __init__(self, bot):
