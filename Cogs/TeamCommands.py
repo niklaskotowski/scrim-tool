@@ -16,10 +16,9 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
     @commands.command(name="team_create",
                       usage="<TeamName>")
     async def team_create(self, ctx, arg):
-        print("team_create")
         result = db.create_team(ctx.author, arg)
         status = result['status']
-        print(status)
+
         send_msg = ""
         if status == "created":
             send_msg = f"Your League team '{arg}' has been created.\n"
@@ -114,7 +113,27 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
     @team_create.error
     async def team_create_error(self, ctx, error):
         if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
-            await ctx.author.send(f"Error: You need to provide a Team Name\nUsage: !link <TeamName>")
+            await ctx.author.send(f"Error: You need to provide a team name\nUsage: !team_create <TeamName>")
+
+    @team_invite.error
+    async def team_invite_error(self, ctx, error):
+        if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
+            await ctx.author.send(f"Error: You need to provide a team name and specify a player\nUsage: !team_invite <TeamName> <PlayerName>")
+
+    @team_join.error
+    async def team_join_error(self, ctx, error):
+        if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
+            await ctx.author.send(f"Error: You need to provide a team name\nUsage: !team_join <TeamName>")
+
+    @team_leave.error
+    async def team_leave_error(self, ctx, error):
+        if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
+            await ctx.author.send(f"Error: You need to provide a team name\nUsage: !team_leave <TeamName>")
+
+    @team_delete.error
+    async def team_delete_error(self, ctx, error):
+        if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
+            await ctx.author.send(f"Error: You need to provide a team name\nUsage: !team_delete <TeamName>")
             
 def setup(bot):
     bot.add_cog(TeamCommands(bot))
