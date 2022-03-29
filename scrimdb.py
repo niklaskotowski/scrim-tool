@@ -19,6 +19,7 @@ client = MongoClient(os.getenv('MONGO_URI'))
 db = client['scrimdb']
 collection = db.users
 teams_collection = db.teams
+match_collection = db.matches
 
 def unlink_command(author):
     result = collection.delete_many({"discord_id": author.id})
@@ -144,7 +145,7 @@ def create_team(author, team_name):
     # New Team
     logging.info(f"Creating New Team {team_name}")
     new_team = {"name": team_name,
-                "owner": owner,
+                "owner_id": disc_id,
                 "member_ids": [disc_id],
                 "invitation_ids": []}
     teams_collection.insert_one(new_team)
@@ -168,7 +169,7 @@ def invite_user(author, team_name, invitee):
         logging.info(f"The user {invitee.name} is not verified.")
         return {"status": "invitee_not_verified", "user_name": invitee.name}     
 
-    if not teamObj['owner']['discord_id'] == author_disc_id:
+    if not teamObj['disc_id'] == author_disc_id:
         logging.info(f"Only the team owner is authorized to invite players.")
         return {"status": "notowner"} 
 
@@ -247,7 +248,7 @@ def remove_team(author, team_name):
         return {"status": "team_notfound", "team_name": team_name}  
 
     # check that the author is the team owner
-    if not author_disc_id == teamObj['owner']['discord_id']:
+    if not author_disc_id == teamObj['owner_id']:
         logging.info(f"Only the team owner is allowed to delete the team.")
         return {"status": "not_owner", "user_name": author_name}      
     else:
@@ -278,3 +279,24 @@ def get_all_teams(author):
     return {"status": "success", "teams": teams}  
 
 
+def create_match(author, team_name, datetime)
+    disc_id = author.id
+    # first verify that the given author owns the tean
+    # a match entry in the collection is created and the first time is set to "team_name"
+    teamObj = teams_collection.find_one({"name": team_name})
+    if teamObj is None:        
+        logging.info(f"The team {team_name} does not exist.")
+        return {"status": "team_notfound", "team_name": team_name}  
+
+    if teamObj['owner_id'] != disc_id:
+        logging.info(f"Only the team owner can schedule a match.")
+        return {"status": "not_owner", "team_name": team_name}
+
+    new_match = {"datetime": datetime,
+                 "team1": team_name,
+                 "roster1": [],
+                 "team2": null()
+                 "roster2": []}
+
+    match_collection.insert_one(new_match)
+    return {"status": "created"}
