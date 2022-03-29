@@ -254,3 +254,27 @@ def remove_team(author, team_name):
         logging.info(f"{author_name} has deleted '{team_name}'.")
         teams_collection.delete_one({"name": team_name})
         return {"status": "success", "team_name": team_name}
+
+def get_team(author, team_name):
+    teamObj = teams_collection.find_one({"name": team_name})
+    # verify that the given team name exists
+    if teamObj is None:        
+        logging.info(f"The team {team_name} does not exist.")
+        return {"status": "team_notfound", "team_name": team_name}  
+
+    # get information about each player
+    players = []
+    for player_id in teamObj['member_ids']:
+        players.append(collection.find_one({"discord_id": player_id}))
+    logging.info(f"Team info for {team_name} has been successfully requested.")
+    return {"status": "success", "teamObj": teamObj, "members": players}
+
+def get_all_teams(author):
+    teamObj = teams_collection.find()
+    # verify that the given team name exists
+    teams = []
+    for team in teamObj:        
+        teams.append(team)
+    return {"status": "success", "teams": teams}  
+
+

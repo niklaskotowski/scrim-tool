@@ -72,7 +72,7 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
 
         send_msg = ""
         if status == "team_notfound":
-            send_msg = f"No team named '{arg1}' has been found in the databse.\n"
+            send_msg = f"No team named '{arg1}' has been found in the database.\n"
         elif status == "no_member":
             send_msg = f"You are not a member of '{arg1}'."
         elif status == "success":
@@ -88,7 +88,7 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
 
         send_msg = ""
         if status == "team_notfound":
-            send_msg = f"No team named '{arg1}' has been found in the databse.\n"
+            send_msg = f"No team named '{arg1}' has been found in the database.\n"
         elif status == "not_owner":
             send_msg = f"You are not the owner of '{arg1}'."
         elif status == "success":
@@ -103,13 +103,31 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
         #list team members
         #list avg elo
         #list w/l ratio
-        print("under construction")
+        result = db.get_team(ctx.author, arg1)
+        print(result)
+        print(ctx)
+        status = result['status']
+        if status == "team_notfound":
+            send_msg = f"No team named '{arg1}' has been found in the database.\n"
+            await ctx.author.send(send_msg)
+        else:
+            send_msg = f"Teamname: {arg1}\n "
+            for x in result['members']:
+                send_msg += f"Player: {x.summoner_name}"
+            await ctx.send(send_msg) 
 
     @commands.command(name="team_list")
-    async def team_list(self, ctx, arg1):
+    async def team_list(self, ctx):
         #list team all existing teams and their member count 
-        print("under construction")
+        result = db.get_all_teams(ctx.author)
+        status = result['status']
+        send_msg = "\n"
+        for team in result['teams']:
+            send_msg += f"Teamname: {team['name']}.\n"
 
+        await ctx.send(send_msg)
+
+####Error Handling
     @team_create.error
     async def team_create_error(self, ctx, error):
         if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
@@ -134,7 +152,13 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
     async def team_delete_error(self, ctx, error):
         if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
             await ctx.author.send(f"Error: You need to provide a team name\nUsage: !team_delete <TeamName>")
+
+    @team_show.error
+    async def team_leave_error(self, ctx, error):
+        if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
+            await ctx.author.send(f"Error: You need to provide a team name\nUsage: !team_show <TeamName>")
+
+
             
 def setup(bot):
     bot.add_cog(TeamCommands(bot))
-    print("Log: TeamCommands is loaded.")

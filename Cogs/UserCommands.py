@@ -62,4 +62,3 @@ class UserCommands(commands.Cog, name="UserCommands"):
 
 def setup(bot):
     bot.add_cog(UserCommands(bot))
-    print("Log: User Commands is loaded.")
