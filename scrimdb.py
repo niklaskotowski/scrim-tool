@@ -279,7 +279,7 @@ def get_all_teams(author):
     return {"status": "success", "teams": teams}  
 
 
-def create_match(author, team_name, datetime)
+def create_match(author, team_name, datetime):
     disc_id = author.id
     # first verify that the given author owns the tean
     # a match entry in the collection is created and the first time is set to "team_name"
@@ -295,8 +295,12 @@ def create_match(author, team_name, datetime)
     new_match = {"datetime": datetime,
                  "team1": team_name,
                  "roster1": [],
-                 "team2": null()
+                 "team2": None,
                  "roster2": []}
 
     match_collection.insert_one(new_match)
     return {"status": "created"}
+
+def get_all_matches(author):
+    teamObjs = teams_collection.find()
+    return {"status" : "success", "teams" : teamObjs}
