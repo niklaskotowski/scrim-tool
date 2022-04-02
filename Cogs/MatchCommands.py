@@ -90,7 +90,10 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
                 embed.add_field(name="Roster:", value=mem2_str, inline=True)
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
                 embed.add_field(name="Matchcode:", value= match['_id'], inline=False)
-                await ctx.send(embed=embed)       
+                message = await ctx.send(embed=embed) 
+                #one emoji to define joining a team and one emoji to specify joining the scrim as a player
+                emoji = '\N{THUMBS UP SIGN}'
+                message.add_reaction(emoji)
         elif status == "team_notfound":
             send_msg = f"Team not found.\n"
             await ctx.author.send(send_msg) 
@@ -104,11 +107,11 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
 
         send_msg = ""
         if status == "success":
-            send_msg = f"Your League team '{arg}' has been created.\n"
-        elif status == "":
-            send_msg = f"You have to link your league account before creating a team '!link <SummonerName>'.\n"
-        elif status == "exists":
-            send_msg = f"A team with this name does already exist.\n"
+            send_msg = f" {result['team_name']} joined the scrim.\n"
+        elif status == "already_part_of_it":
+            send_msg = f"The team  {result['team_name']} is already part of the scrim.\n"
+        elif status == "team_notfound":
+            send_msg = f"You have to own a team in order to join a scrim.\n"
         await ctx.author.send(send_msg)  
 
     # join a match as a player -- organized by emotes that can be upvoted
@@ -152,14 +155,14 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
                 embed.add_field(name="Time:", value=match['datetime'], inline=False)
                 embed.add_field(name="Team 1:", value=match['team1'], inline=True)
                 # concat members in a string
-                members1 = [str(x) for x in match['roster1']]
+                members1 = [str(x) for x in result['players']]
                 mem1_str = "\n".join(members1)
                 if mem1_str == "":
                     mem1_str = "Currently no player in this team."
                 embed.add_field(name="Roster:", value=mem1_str, inline=True)
                 embed.add_field(name='\u200b', value='\u200b', inline=False)
                 embed.add_field(name="Team 2:", value=match['team2'], inline=True)
-                members2 = [str(x) for x in match['roster2']]
+                members2 = [str(x) for x in result['players']]
                 mem2_str = "\n".join(members2)
                 if mem2_str == "":
                     mem2_str = "Currently no player in this team."

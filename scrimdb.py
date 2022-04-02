@@ -317,15 +317,19 @@ def get_match(author, team_name):
 
 def join_match_asteam(author, _id):
     # check if the author is owner of a team
-    matchObj = match_collection.find_one({"_id" : _id})
+    matchObj = match_collection.find_one({"_id" : ObjectId(_id)})
+    # check that the team has not already entered the scrim    
     assert(matchObj['team1'] == None or matchObj['team2'] == None)
     teamObj = teams_collection.find({"owner_id": author.id})
+    if (teamObj['name'] == matchObj['team1'] or teamObj['name'] == matchObj['team2']):
+        logging.info(f"{teamObj['name']} is already part of the scrim.")
+        return {"status": "already_part_of_it"}
     if teamObj is None:
         logging.info(f"{author.name} requested to join a scrim without owning a team.")
         return {"status": "team_notfound"}
     else: 
         logging.info(f"{teamObj['name']} joined the selected scrim at {matchObj['datetime']}.")
-        return {"status": "success"}
+        return {"status": "success", "team_name": teamObj['name']}
 
 def join_match_asplayer(user_id, _id):
     # here author['id'] as we obtain the author object from the reaction object
@@ -334,6 +338,7 @@ def join_match_asplayer(user_id, _id):
     # the roster recruiting starts when two teams have entered
     matchObj = match_collection.find_one({"_id" : ObjectId(_id)})
     # verify that the author is not already part of one of the rosters
+    players = []
     if matchObj is not None:
         if (user_id in matchObj['roster1'] or user_id in matchObj['roster2']):
             logging.info(f"{user_id} is already part of the scrim.")
@@ -347,13 +352,19 @@ def join_match_asplayer(user_id, _id):
         match_collection.update_one({"_id": ObjectId(_id)},
                                     {"$push":{"roster1": user_id}})
         matchObj = match_collection.find_one({"_id" : ObjectId(_id)})
-        return {'status': 'success', 'match' : matchObj}
+        for p_id in matchObj['roster1']:
+            userObj = collection.find_one({"discord_id": p_id})
+            players.append(userObj['summoner_name'])
+        return {'status': 'success', 'match' : matchObj, 'players' : players}
     elif(team2_Obj is not None):
         logging.info(f"{user_id} joined scrim with id: {_id}.")
         match_collection.update_one({"_id": ObjectId(_id)},
                                     {"$push":{"roster2": user_id}}) 
         matchObj = match_collection.find_one({"_id" : ObjectId(_id)})   
-        return {'status': 'success', 'match' : matchObj} 
+        for p_id in matchObj['roster2']:
+            userObj = collection.find_one({"discord_id": p_id})
+            players.append(userObj['summoner_name'])
+        return {'status': 'success', 'match' : matchObj, 'players' : players} 
     else: 
         logging.info(f"{user_id} requested to join a scrim without being part of one of the teams.")
         return {"status": "no_member"}
