@@ -4,7 +4,7 @@ from pymongo import MongoClient
 import logging
 from dotenv import load_dotenv
 import requests
-
+from bson.objectid import ObjectId
 #client = MongoClient(os.getenv('MONGO_URI'))
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] - %(message)s',
@@ -304,3 +304,58 @@ def create_match(author, team_name, datetime):
 def get_all_matches(author):
     teamObjs = teams_collection.find()
     return {"status" : "success", "teams" : teamObjs}
+
+def get_match(author, team_name):
+    teamObj = teams_collection.find({"name": team_name})
+    if teamObj is None:        
+        logging.info(f"The team {team_name} does not exist.")
+        return {"status": "team_notfound", "team_name": team_name}  
+    else:
+        matches = match_collection.find({"$or" :[ {"team1": team_name}, {"team2": team_name} ] })
+        logging.info(f"Scheduled matches for {team_name} are returned.")
+        return {"status": "success", "matches" : matches}
+
+def join_match_asteam(author, _id):
+    # check if the author is owner of a team
+    matchObj = match_collection.find_one({"_id" : _id})
+    assert(matchObj['team1'] == None or matchObj['team2'] == None)
+    teamObj = teams_collection.find({"owner_id": author.id})
+    if teamObj is None:
+        logging.info(f"{author.name} requested to join a scrim without owning a team.")
+        return {"status": "team_notfound"}
+    else: 
+        logging.info(f"{teamObj['name']} joined the selected scrim at {matchObj['datetime']}.")
+        return {"status": "success"}
+
+def join_match_asplayer(user_id, _id):
+    # here author['id'] as we obtain the author object from the reaction object
+    # check if the author is part of one of the teams
+    # how is this implemented in the most efficient way -- given the scrim _id verify that the author is either in team1 or team2
+    # the roster recruiting starts when two teams have entered
+    matchObj = match_collection.find_one({"_id" : ObjectId(_id)})
+    # verify that the author is not already part of one of the rosters
+    if matchObj is not None:
+        if (user_id in matchObj['roster1'] or user_id in matchObj['roster2']):
+            logging.info(f"{user_id} is already part of the scrim.")
+            return {'status': 'already_part_of_it'}
+    else:
+        return {'status': 'match_notfound'}
+    team1_Obj = teams_collection.find_one({"name": matchObj['team1'], "member_ids" : {"$in": [user_id]}})
+    team2_Obj = teams_collection.find_one({"name": matchObj['team2'], "member_ids" : {"$in": [user_id]}})
+    if (team1_Obj is not None):
+        logging.info(f"{user_id} joined scrim with id: {_id}.")
+        match_collection.update_one({"_id": ObjectId(_id)},
+                                    {"$push":{"roster1": user_id}})
+        matchObj = match_collection.find_one({"_id" : ObjectId(_id)})
+        return {'status': 'success', 'match' : matchObj}
+    elif(team2_Obj is not None):
+        logging.info(f"{user_id} joined scrim with id: {_id}.")
+        match_collection.update_one({"_id": ObjectId(_id)},
+                                    {"$push":{"roster2": user_id}}) 
+        matchObj = match_collection.find_one({"_id" : ObjectId(_id)})   
+        return {'status': 'success', 'match' : matchObj} 
+    else: 
+        logging.info(f"{user_id} requested to join a scrim without being part of one of the teams.")
+        return {"status": "no_member"}
+
+

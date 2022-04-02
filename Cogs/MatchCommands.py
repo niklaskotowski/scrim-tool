@@ -43,17 +43,15 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
             send_msg = f"A match has been scheduled to {dt}.\n"
         await ctx.author.send(send_msg)        
 
-    @commands.command(name="match_show_all",
-                      usage="<TeamName>")
+    @commands.command(name="match_show_all")
     async def match_show_all(self, ctx):
         result = db.get_all_matches(ctx.author)
         status = result['status']
 
         send_msg = ""
         if status == "success":
-            send_msg = f"Currently open matches:\n"
             embed=discord.Embed()
-            embed.set_author(name="ScrimManager")
+            embed.set_author(name="Currently open matches:")
             embed.add_field(name="Time:", value=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), inline=False)
             embed.add_field(name="Team 1:", value="OlsCs", inline=True)
             embed.add_field(name="Roster:", value="Secr3t\nVictoriousMuffin\nCpt Aw\n", inline=True)
@@ -62,38 +60,122 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
             embed.add_field(name="Roster:", value="Diviine\nRalle\nGabi ", inline=True)
         await ctx.send(embed=embed)       
 
+    # show all scrim dates for a given team 
     @commands.command(name="match_show",
                       usage="<TeamName>")
-    async def match_show(self, ctx, arg):
-        result = db.get_match(ctx.author, arg)
+    async def match_show(self, ctx, team_name):
+        result = db.get_match(ctx.author, team_name)
         status = result['status']
 
         send_msg = ""
-        if status == "created":
-            send_msg = f"Your League team '{arg}' has been created.\n"
-        elif status == "not_verified":
-            send_msg = f"You have to link your league account before creating a team '!link <SummonerName>'.\n"
-        elif status == "exists":
-            send_msg = f"A team with this name does already exist.\n"
-        await ctx.author.send(send_msg)    
-
-    @commands.command(name="match_join",
+        if status == "success":
+            for match in result['matches']:
+                embed=discord.Embed()
+                string = "Currently scheduled scrim matches for '" + team_name + "'"
+                embed.set_author(name=string)
+                embed.add_field(name="Time:", value=match['datetime'], inline=False)
+                embed.add_field(name="Team 1:", value=match['team1'], inline=True)
+                # concat members in a string
+                members1 = [x for x in match['roster1']]
+                mem1_str = "\n".join(members1)
+                if mem1_str == "":
+                    mem1_str = "Currently no player in this team."
+                embed.add_field(name="Roster:", value=mem1_str, inline=True)
+                embed.add_field(name='\u200b', value='\u200b', inline=False)
+                embed.add_field(name="Team 2:", value=match['team2'], inline=True)
+                members2 = [x for x in match['roster2']]
+                mem2_str = "\n".join(members2)
+                if mem2_str == "":
+                    mem2_str = "Currently no player in this team."
+                embed.add_field(name="Roster:", value=mem2_str, inline=True)
+                embed.add_field(name='\u200b', value='\u200b', inline=False)
+                embed.add_field(name="Matchcode:", value= match['_id'], inline=False)
+                await ctx.send(embed=embed)       
+        elif status == "team_notfound":
+            send_msg = f"Team not found.\n"
+            await ctx.author.send(send_msg) 
+           
+    # join a match as a team -- organized by emotes that can be upvoted
+    @commands.command(name="match_team_join",
                       usage="<TeamName>")
-    async def match_join(self, ctx, arg):
-        result = db.join_match(ctx.author, arg)
+    async def match_team_join(self, ctx, _id):
+        result = db.join_match_asteam(ctx.author, _id)
         status = result['status']
 
         send_msg = ""
-        if status == "created":
+        if status == "success":
             send_msg = f"Your League team '{arg}' has been created.\n"
-        elif status == "not_verified":
+        elif status == "":
             send_msg = f"You have to link your league account before creating a team '!link <SummonerName>'.\n"
         elif status == "exists":
             send_msg = f"A team with this name does already exist.\n"
-        await ctx.author.send(send_msg)    
+        await ctx.author.send(send_msg)  
+
+    # join a match as a player -- organized by emotes that can be upvoted
+    @commands.command(name="match_player_join",
+                      usage="<TeamName>")
+    async def match_player_join(self, ctx, _id):
+        result = db.join_match_asplayer(ctx.author, _id)
+        status = result['status']
+
+        send_msg = ""
+        if status == "success":
+            send_msg = f"You joined the scrim on {result['scrim']['datetime']}.\n"
+            match_show(ctx, result['scrim']['team1'])
+        elif status == "no_member":
+            send_msg = f"You have to be part of one of the teams in order to join the scrim as a player'.\n"
+        elif status == "already_part_of_it":
+            send_msg = f"You are already part of the scrim.\n"
+        await ctx.author.send(send_msg)        
 
     async def update_roster(self, ctx, match, team_nr, roster):
         print("update roster")
+
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, reaction):
+        channel = self.bot.get_channel(956618562712264765)
+        if str(reaction.emoji) == "🙌":        
+            message = await channel.fetch_message(reaction.message_id)
+            embeds = message.embeds
+            e = embeds[0].to_dict()
+            match_id = e['fields'][-1]['value']
+            #messsage.edit(embed = newEmbed)
+            result = db.join_match_asplayer(reaction.user_id, match_id)
+            status = result['status']
+            send_msg = ""
+            if status == "success":
+                match = result['match']
+                embed=discord.Embed()
+                string = "Scrim"
+                embed.set_author(name=string)
+                embed.add_field(name="Time:", value=match['datetime'], inline=False)
+                embed.add_field(name="Team 1:", value=match['team1'], inline=True)
+                # concat members in a string
+                members1 = [str(x) for x in match['roster1']]
+                mem1_str = "\n".join(members1)
+                if mem1_str == "":
+                    mem1_str = "Currently no player in this team."
+                embed.add_field(name="Roster:", value=mem1_str, inline=True)
+                embed.add_field(name='\u200b', value='\u200b', inline=False)
+                embed.add_field(name="Team 2:", value=match['team2'], inline=True)
+                members2 = [str(x) for x in match['roster2']]
+                mem2_str = "\n".join(members2)
+                if mem2_str == "":
+                    mem2_str = "Currently no player in this team."
+                embed.add_field(name="Roster:", value=mem2_str, inline=True)
+                embed.add_field(name='\u200b', value='\u200b', inline=False)
+                embed.add_field(name="Matchcode:", value= match['_id'], inline=False)     
+                await message.edit(embed = embed)
+            elif status == "no_member":
+                send_msg = f"You have to be part of one of the teams in order to join the scrim as a player'.\n"
+                await channel.send(send_msg)
+            elif status == "already_part_of_it":
+                send_msg = f"You are already part of the scrim.\n"
+                await channel.send(send_msg)
+            elif status == "match_notfound":
+                send_msg = f"Match not found"
+                await channel.send(send_msg)       
 
 ####Error Handling
 
