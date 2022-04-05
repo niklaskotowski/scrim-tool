@@ -16,17 +16,9 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
     @commands.command(name="team_create",
                       usage="<TeamName>")
     async def team_create(self, ctx, arg):
-        result = db.create_team(ctx.author, arg)
-        status = result['status']
-
-        send_msg = ""
-        if status == "created":
-            send_msg = f"Your League team '{arg}' has been created.\n"
-        elif status == "not_verified":
-            send_msg = f"You have to link your league account before creating a team '!link <SummonerName>'.\n"
-        elif status == "exists":
-            send_msg = f"A team with this name does already exist.\n"
-        await ctx.author.send(send_msg)                
+        db_response = db.create_team(ctx.author, arg)
+        logging.info(f"Team Create Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
         
 
     @commands.command(name="team_invite",

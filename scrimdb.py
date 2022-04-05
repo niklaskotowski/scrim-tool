@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import requests
 from bson.objectid import ObjectId
 #client = MongoClient(os.getenv('MONGO_URI'))
-from db.db_response import LinkResponse, RankedInfoResponse
+from db.db_response import *
 import db.lolapi_data as lol
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] - %(message)s',
@@ -155,15 +155,18 @@ def create_team(author, team_name):
     print("in_coll2")
     if team is not None:
         logging.info(f"A team with this name already exists '{team_name}'")
-        return {"status": "exists", "team_name": team_name}       
+        # return {"status": "exists", "team_name": team_name}
+        return CreateTeamResponse(status="exists", team_name=team_name)
 
     if owner is not None:
         if not owner['verified']:
             logging.info(f"The team owner has to link a league account !link <SummonerName>.")
-            return {"status": "not_verified", "disc_name": disc_name}       
+            # return {"status": "not_verified", "disc_name": disc_name}
+            return CreateTeamResponse(status="not_verified", disc_name=disc_name)
     else:
         logging.info(f"The team owner has to link a league account !link <SummonerName>.")
-        return {"status": "not_verified", "disc_name": disc_name}    
+        # return {"status": "not_verified", "disc_name": disc_name}
+        return CreateTeamResponse(status="not_verified", disc_name=disc_name)
     # New Team
     logging.info(f"Creating New Team {team_name}")
     new_team = {"name": team_name,
@@ -171,7 +174,8 @@ def create_team(author, team_name):
                 "member_ids": [disc_id],
                 "invitation_ids": []}
     teams_collection.insert_one(new_team)
-    return {"status": "created", "team_name": team_name, "owner": owner}
+    # return {"status": "created", "team_name": team_name, "owner": owner}
+    return CreateTeamResponse(status="created", team_name=team_name, owner=owner)
 
 def invite_user(author, team_name, invitee):
     author_name = str(author)
