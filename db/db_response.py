@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
+
 class DBResponse(ABC):
     @abstractmethod
     def discord_msg(self) -> str:
         pass
+
 
 @dataclass
 class LinkResponse(DBResponse):
@@ -16,9 +18,9 @@ class LinkResponse(DBResponse):
     def __post_init__(self) -> None:
         if self.status == "created":
             self.msg = f"Your Discord account has been linked to Summoner '{self.summoner_name}'.\n" \
-                   f"To verify that this account belong to you please enter the following code:\n" \
-                   f"{self.verification_id}\n" \
-                   f"You can enter this code in the League of Legends settings under 'Verification'."
+                       f"To verify that this account belong to you please enter the following code:\n" \
+                       f"{self.verification_id}\n" \
+                       f"You can enter this code in the League of Legends settings under 'Verification'."
         if self.status == "verified":
             self.msg = f"You have already verified Summoner '{self.summoner_name}'\n " \
                        f"Use !unlink to remove all verifications for this Discord User."
@@ -29,6 +31,7 @@ class LinkResponse(DBResponse):
 
     def discord_msg(self):
         return self.msg
+
 
 @dataclass
 class RankedInfoResponse(DBResponse):
@@ -75,6 +78,7 @@ class RankedInfoResponse(DBResponse):
     def discord_msg(self):
         return self.msg
 
+
 @dataclass
 class CreateTeamResponse(DBResponse):
     status: str
@@ -93,6 +97,7 @@ class CreateTeamResponse(DBResponse):
 
     def discord_msg(self):
         return self.msg
+
 
 @dataclass
 class InviteUserResponse(DBResponse):
@@ -136,6 +141,7 @@ class TeamJoinResponse(DBResponse):
             self.msg = f"You have to be verified before interacting with teams."
         elif self.status == "success":
             self.msg = f"You successfully joined '{self.team_name}'."
+
 
 @dataclass
 class TeamLeaveResponse(DBResponse):
@@ -195,6 +201,7 @@ class TeamShowResponse(DBResponse):
             self.msg = f"Teamname: {self.team_name}\n "
             for x in self.members:
                 self.msg += f"Player: {x.summoner_name}\n"
+
 
 @dataclass
 class TeamListResponse(DBResponse):
