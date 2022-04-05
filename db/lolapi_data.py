@@ -25,6 +25,7 @@ def get_queue_info(queue):
 
 # noinspection PyTypedDict
 def get_info(summoner_id, region="EUW"):
+    logging.info(f"Querying LOL API for Summoner '{summoner_id}'")
     summoner = cass.get_summoner(id=summoner_id, region=region)
 
     data = {}

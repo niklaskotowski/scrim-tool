@@ -22,26 +22,9 @@ class UserCommands(commands.Cog, name="UserCommands"):
     @commands.command(name="link",
                       usage="<LeagueName>")
     async def link(self, ctx, arg):
-        result = db.link_command(arg, ctx.author)
-        logging.debug(f"Link Call Response: {result}")
-        status = result['status']
-
-        if status == "created":
-            send_msg = f"Your Discord account has been linked to Summoner '{result['summoner_name']}'.\n" \
-                   f"To verify that this account belong to you please enter the following code:\n" \
-                   f"{result['verify']}\n" \
-                   f"You can enter this code in the League of Legends settings under 'Verification'."
-            await ctx.author.send(send_msg)
-
-        if status == "verified":
-            await ctx.author.send(f"You have already verified Summoner '{result['summoner_name']}'\n"
-                                  f"Use !unlink to remove all verifications for this Discord User.")
-
-        if status == "rejected":
-            await ctx.author.send(f"Summoner '{result['summoner_name']}' has already been verified by another user.")
-
-        if status == "invalid":
-            await ctx.author.send(f"Summoner '{result['summoner_name']}' does not exist on EUW.")
+        db_response = db.link_command(arg, ctx.author)
+        logging.info(f"Link Call Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
 
     @link.error
     async def link_error(self, ctx, error):
@@ -50,11 +33,9 @@ class UserCommands(commands.Cog, name="UserCommands"):
 
     @commands.command(name="rankedinfo")
     async def rankedinfo(self, ctx):
-        result = db.rankedinfo_command(ctx.author)
-        status = result['status']
-
-        if status == "success":
-            await ctx.author.send(msg.command_rankedinfo(result['data']))
+        db_response = db.rankedinfo_command(ctx.author)
+        logging.info(f"RankedInfo Call Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
 
 
 
