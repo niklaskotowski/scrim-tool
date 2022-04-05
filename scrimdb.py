@@ -186,18 +186,21 @@ def invite_user(author, team_name, invitee):
     # verify that the given team name exists
     if teamObj is None:        
         logging.info(f"The team {team_name} does not exist.")
-        return {"status": "team_notfound", "team_name": team_name}  
+        # return {"status": "team_notfound", "team_name": team_name}
+        return InviteUserResponse(status="team_notfound", team_name=team_name)
 
     # check if the invitee is a verified user
     inviteeObj = collection.find_one({"discord_id": invitee_id})
     assert(inviteeObj != None)
     if not inviteeObj['verified']:
         logging.info(f"The user {invitee.name} is not verified.")
-        return {"status": "invitee_not_verified", "user_name": invitee.name}     
+        # return {"status": "invitee_not_verified", "user_name": invitee.name}
+        return InviteUserResponse(status="invitee_not_verified", user_name=invitee.name)
 
     if not teamObj['disc_id'] == author_disc_id:
         logging.info(f"Only the team owner is authorized to invite players.")
-        return {"status": "notowner"} 
+        # return {"status": "notowner"}
+        return InviteUserResponse(status="notowner")
 
     ownerObj = collection.find_one({"discord_id": author_disc_id})
     assert(ownerObj['verified'])
@@ -208,7 +211,8 @@ def invite_user(author, team_name, invitee):
     teams_collection.update_one({"name": team_name},
                                 {"$push": {"invitation_ids": invitee_id}}) # can be added as argument to create if list does not exist
     
-    return {"status": "success", "team_name": team_name, "invitee_name": invitee.name}
+    # return {"status": "success", "team_name": team_name, "invitee_name": invitee.name}
+    return InviteUserResponse(status="success", team_name=team_name, invitee_name=invitee.name)
 
 def join_team(author, team_name):
     author_name = str(author)
@@ -218,7 +222,8 @@ def join_team(author, team_name):
     # verify that the given team name exists
     if teamObj is None:        
         logging.info(f"The team {team_name} does not exist.")
-        return {"status": "team_notfound", "team_name": team_name}  
+        # return {"status": "team_notfound", "team_name": team_name}
+        return TeamJoinResponse(status="team_notfound", team_name=team_name)
 
     # check if author is verified
     authorObj = collection.find_one({"discord_id": author_disc_id})
@@ -226,7 +231,8 @@ def join_team(author, team_name):
         # check if the author is invited
         if not authorObj in teamObj['invitees']:
             logging.info(f"The user {author_name} has not been invited to {team_name}.")
-            return {"status": "no_invitation", "user_name": author_name}
+            # return {"status": "no_invitation", "user_name": author_name}
+            return TeamJoinResponse(status="no_invitation", user_name=author_name)
         # if he is invited he has to be verified, thus we can invite him.    
         else:
             assert(authorObj['verified'])
@@ -235,11 +241,13 @@ def join_team(author, team_name):
                                         {"$pull": {"invitation_ids": author_disc_id}})        
             teams_collection.update_one({"name": team_name},
                                         {"$push": {"member_ids": author_disc_id}})
-            return {"status": "success", "team_name": team_name}
+            #return {"status": "success", "team_name": team_name}
+            return TeamJoinResponse(status="success", team_name=team_name)
     else:
         logging.info(f"The user {author_name} has to be verified before interacting with teams.")        
-        return {"status": "not_verified", "team_name": team_name}
-    
+        #return {"status": "not_verified", "team_name": team_name}
+        return TeamJoinResponse(status="not_verified", team_name=team_name)
+
 
 def leave_team(author, team_name):
     author_name = str(author)
@@ -249,18 +257,21 @@ def leave_team(author, team_name):
     # verify that the given team name exists
     if teamObj is None:        
         logging.info(f"The team {team_name} does not exist.")
-        return {"status": "team_notfound", "team_name": team_name}  
+        # return {"status": "team_notfound", "team_name": team_name}
+        return TeamLeaveResponse(status="team_notfound", team_name=team_name)
 
     # check that the user is part of the team
     if not author_disc_id in teamObj['member_ids']:
         logging.info(f"The user {author_name} is not part of {team_name}.")
-        return {"status": "no_member", "user_name": author_name}      
+        # return {"status": "no_member", "user_name": author_name}
+        return TeamLeaveResponse(status="no_member", user_name=author_name)
     else:
         # TODO: if the user is the team_owner the team_owner rights have to be transferred before leaving
         logging.info(f"{author_name} has left {team_name}.")
         teams_collection.update_one({"name": team_name},
                                     {"$pull":{"member_ids": author_disc_id}})        
-        return {"status": "success", "team_name": team_name}
+        # return {"status": "success", "team_name": team_name}
+        return TeamLeaveResponse(status="success", team_name=team_name)
     
 
 def remove_team(author, team_name):  
@@ -271,30 +282,35 @@ def remove_team(author, team_name):
     # verify that the given team name exists
     if teamObj is None:        
         logging.info(f"The team {team_name} does not exist.")
-        return {"status": "team_notfound", "team_name": team_name}  
+        # return {"status": "team_notfound", "team_name": team_name}
+        return TeamDeleteResponse(status="team_notfound", team_name=team_name)
 
     # check that the author is the team owner
     if not author_disc_id == teamObj['owner_id']:
         logging.info(f"Only the team owner is allowed to delete the team.")
-        return {"status": "not_owner", "user_name": author_name}      
+        # return {"status": "not_owner", "user_name": author_name}
+        return TeamDeleteResponse(status="not_owner", user_name=author_name)
     else:
         logging.info(f"{author_name} has deleted '{team_name}'.")
         teams_collection.delete_one({"name": team_name})
-        return {"status": "success", "team_name": team_name}
+        # return {"status": "success", "team_name": team_name}
+        return TeamDeleteResponse(status="success", team_name=team_name)
 
 def get_team(author, team_name):
     teamObj = teams_collection.find_one({"name": team_name})
     # verify that the given team name exists
     if teamObj is None:        
         logging.info(f"The team {team_name} does not exist.")
-        return {"status": "team_notfound", "team_name": team_name}  
+        # return {"status": "team_notfound", "team_name": team_name}
+        return TeamShowResponse(status="team_notfound", team_name=team_name)
 
     # get information about each player
     players = []
     for player_id in teamObj['member_ids']:
         players.append(collection.find_one({"discord_id": player_id}))
     logging.info(f"Team info for {team_name} has been successfully requested.")
-    return {"status": "success", "teamObj": teamObj, "members": players}
+    # return {"status": "success", "teamObj": teamObj, "members": players}
+    return TeamShowResponse(status="success", teamObj=teamObj, members=players)
 
 def get_all_teams(author):
     teamObj = teams_collection.find()
@@ -302,7 +318,8 @@ def get_all_teams(author):
     teams = []
     for team in teamObj:        
         teams.append(team)
-    return {"status": "success", "teams": teams}  
+    #return {"status": "success", "teams": teams}
+    return TeamListResponse(status="success", teams=teams)
 
 
 def create_match(author, team_name, datetime):

@@ -93,3 +93,118 @@ class CreateTeamResponse(DBResponse):
 
     def discord_msg(self):
         return self.msg
+
+@dataclass
+class InviteUserResponse(DBResponse):
+    status: str
+    team_name: str = None
+    user_name: str = None
+    invitee_name: str = None
+    msg: str = field(init=False, repr=False)
+
+    def discord_msg(self):
+        return self.msg
+
+    def __post_init__(self) -> None:
+        if self.status == "team_notfound":
+            self.msg = f"No team named '{self.team_name}' has been found in the database."
+        elif self.status == "invitee_not_verified":
+            self.msg = f"The player you are trying to invite is not verified."
+        elif self.status == "not_owner":
+            self.msg = f"Only the team owner is allowed to invite new players."
+        elif self.status == "success":
+            self.msg = f"{self.user.name} has been successfully invited to '{self.team_name}'."
+
+
+@dataclass
+class TeamJoinResponse(DBResponse):
+    status: str
+    team_name: str = None
+    user_name: str = None
+    invitee_name: str = None
+    msg: str = field(init=False, repr=False)
+
+    def discord_msg(self):
+        return self.msg
+
+    def __post_init__(self) -> None:
+        if self.status == "team_notfound":
+            self.msg = f"No team named '{self.team_name}' has been found in the database."
+        elif self.status == "no_invitation":
+            self.msg = f"No open invitation for {self.ctx.author}."
+        elif self.status == "not_verfied":
+            self.msg = f"You have to be verified before interacting with teams."
+        elif self.status == "success":
+            self.msg = f"You successfully joined '{self.team_name}'."
+
+@dataclass
+class TeamLeaveResponse(DBResponse):
+    status: str
+    team_name: str = None
+    user_name: str = None
+    invitee_name: str = None
+    msg: str = field(init=False, repr=False)
+
+    def discord_msg(self):
+        return self.msg
+
+    def __post_init__(self) -> None:
+        if self.status == "team_notfound":
+            self.msg = f"No team named '{self.team_name}' has been found in the database.\n"
+        elif self.status == "no_member":
+            self.msg = f"You are not a member of '{self.team_name}'."
+        elif self.status == "success":
+            self.msg = f"You successfully left '{self.team_name}'."
+
+
+@dataclass
+class TeamDeleteResponse(DBResponse):
+    status: str
+    team_name: str = None
+    user_name: str = None
+    invitee_name: str = None
+    msg: str = field(init=False, repr=False)
+
+    def discord_msg(self):
+        return self.msg
+
+    def __post_init__(self) -> None:
+        if self.status == "team_notfound":
+            self.msg = f"No team named '{self.team_name}' has been found in the database.\n"
+        elif self.status == "no_member":
+            self.msg = f"You are not a member of '{self.team_name}'."
+        elif self.status == "success":
+            self.msg = f"You successfully left '{self.team_name}'."
+
+
+@dataclass
+class TeamShowResponse(DBResponse):
+    status: str
+    team_name: str = None
+    teamObj: dict = None
+    members: list = None
+    msg: str = field(init=False, repr=False)
+
+    def discord_msg(self):
+        return self.msg
+
+    def __post_init__(self) -> None:
+        if self.status == "team_notfound":
+            self.msg = f"No team named '{self.team_name}' has been found in the database.\n"
+        else:
+            self.msg = f"Teamname: {self.team_name}\n "
+            for x in self.members:
+                self.msg += f"Player: {x.summoner_name}\n"
+
+@dataclass
+class TeamListResponse(DBResponse):
+    status: str
+    teams: list = None
+
+    def discord_msg(self):
+        return self.msg
+
+    def __post_init__(self) -> None:
+        self.msg = ""
+        for team in self.teams:
+            self += f"Teamname: {team['name']}.\n"

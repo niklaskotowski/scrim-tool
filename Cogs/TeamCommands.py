@@ -24,102 +24,45 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
     @commands.command(name="team_invite",
                       usage="<TeamName> <PlayerName>")
     async def team_invite(self, ctx, arg1, user: discord.Member = None):
-        invitation = db.invite_user(ctx.author, arg1, user)
-        status = invitation['status']
-
-        send_msg = ""
-        if status == "team_notfound":
-            send_msg = f"No team named '{arg1}' has been found in the database.\n"
-        elif status == "invitee_not_verified":
-            send_msg = f"The player you are trying to invite is not verified.\n"
-        elif status == "not_owner":
-            send_msg = f"Only the team owner is allowed to invite new players.\n"
-        elif status == "success":
-            send_msg = f"{user.name} has been successfully invited to '{arg1}'.\n"
-        await ctx.author.send(send_msg)
+        db_response = db.invite_user(ctx.author, arg1, user)
+        logging.info(f"Team Invite Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
 
     @commands.command(name="team_join",
                       usage="<TeamName>")
     async def team_join(self, ctx, arg1):
-        result = db.join_team(ctx.author, arg1)
-        status = result['status']
-
-        send_msg = ""
-        if status == "team_notfound":
-            send_msg = f"No team named '{arg1}' has been found in the database.\n"
-        elif status == "no_invitation":
-            send_msg = f"No open invitation for {ctx.author}.\n"
-        elif status == "not_verfied":
-            send_msg = f"You have to be verified before interacting with teams.\n"
-        elif status == "success":
-            send_msg = f"You successfully joined '{arg1}'.\n"
-        else:
-            assert(false)
-        await ctx.author.send(send_msg)
+        db_response = db.join_team(ctx.author, arg1)
+        logging.info(f"Team Join Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
 
     @commands.command(name="team_leave")
     async def team_leave(self, ctx, arg1):
-        result = db.leave_team(ctx.author, arg1)
-        status = result['status']
-
-        send_msg = ""
-        if status == "team_notfound":
-            send_msg = f"No team named '{arg1}' has been found in the database.\n"
-        elif status == "no_member":
-            send_msg = f"You are not a member of '{arg1}'."
-        elif status == "success":
-            send_msg = f"You successfully left '{arg1}'."
-        else:
-            assert(false)
-        await ctx.author.send(send_msg)
+        db_response = db.leave_team(ctx.author, arg1)
+        logging.info(f"Team Leave Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
 
     @commands.command(name="team_delete")
     async def team_delete(self, ctx, arg1):
-        result = db.remove_team(ctx.author, arg1)
-        status = result['status']
-
-        send_msg = ""
-        if status == "team_notfound":
-            send_msg = f"No team named '{arg1}' has been found in the database.\n"
-        elif status == "not_owner":
-            send_msg = f"You are not the owner of '{arg1}'."
-        elif status == "success":
-            send_msg = f"You successfully deleted '{arg1}'."
-        else:
-            assert(false)
-
-        await ctx.author.send(send_msg)
+        db_response = db.remove_team(ctx.author, arg1)
+        logging.info(f"Team Delete Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
 
     @commands.command(name="team_show")
     async def team_show(self, ctx, arg1):
         #list team members
         #list avg elo
         #list w/l ratio
-        result = db.get_team(ctx.author, arg1)
-        print(result)
-        print(ctx)
-        status = result['status']
-        if status == "team_notfound":
-            send_msg = f"No team named '{arg1}' has been found in the database.\n"
-            await ctx.author.send(send_msg)
-        else:
-            send_msg = f"Teamname: {arg1}\n "
-            for x in result['members']:
-                send_msg += f"Player: {x.summoner_name}"
-            await ctx.send(send_msg) 
+        db_response = db.get_team(ctx.author, arg1)
+        logging.info(f"Team Show Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
 
     @commands.command(name="team_list")
     async def team_list(self, ctx):
         #list team all existing teams and their member count 
-        result = db.get_all_teams(ctx.author)
-        status = result['status']
-        send_msg = "\n"
-        for team in result['teams']:
-            send_msg += f"Teamname: {team['name']}.\n"
+        db_response = db.get_all_teams(ctx.author)
+        logging.info(f"Team List Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
 
-        await ctx.send(send_msg)
-
-####Error Handling
     @team_create.error
     async def team_create_error(self, ctx, error):
         if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
