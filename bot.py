@@ -6,6 +6,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import asyncio
 import sys
+import logging
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -25,6 +26,12 @@ bot = Bot(command_prefix='!', description=desc, help_command=help_command)
 # !team_Search
 # !user_info
 
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] - %(message)s',
+                    datefmt='%m/%d/%Y %H:%M:%S',
+                    handlers=[
+                        logging.FileHandler("scrimdb.log"),
+                        logging.StreamHandler()
+                    ])
 
 
 @bot.event

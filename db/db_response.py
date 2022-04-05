@@ -214,4 +214,4 @@ class TeamListResponse(DBResponse):
     def __post_init__(self) -> None:
         self.msg = ""
         for team in self.teams:
-            self += f"Teamname: {team['name']}.\n"
+            self.msg += f"Teamname: {team['name']}.\n"

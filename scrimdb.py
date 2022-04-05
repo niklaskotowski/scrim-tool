@@ -9,12 +9,6 @@ from bson.objectid import ObjectId
 from db.db_response import *
 import db.lolapi_data as lol
 
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] - %(message)s',
-                    datefmt='%m/%d/%Y %H:%M:%S',
-                    handlers=[
-                        logging.FileHandler("scrimdb.log"),
-                        logging.StreamHandler()
-                    ])
 
 load_dotenv()
 client = MongoClient(os.getenv('MONGO_URI'))
