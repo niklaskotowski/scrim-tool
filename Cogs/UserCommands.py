@@ -22,8 +22,11 @@ class UserCommands(commands.Cog, name="UserCommands"):
     @commands.command(name="link",
                       usage="<LeagueName>")
     async def link(self, ctx, arg):
-        result = db.link_command(arg, ctx.author)
-        logging.debug(f"Link Call Response: {result}")
+        db_response = db.link_command(arg, ctx.author)
+        logging.info(f"Link Call Response: {db_response}")
+        await ctx.author.send(db_response.discord_msg())
+
+        '''logging.debug(f"Link Call Response: {result}")
         status = result['status']
 
         if status == "created":
@@ -41,7 +44,7 @@ class UserCommands(commands.Cog, name="UserCommands"):
             await ctx.author.send(f"Summoner '{result['summoner_name']}' has already been verified by another user.")
 
         if status == "invalid":
-            await ctx.author.send(f"Summoner '{result['summoner_name']}' does not exist on EUW.")
+            await ctx.author.send(f"Summoner '{result['summoner_name']}' does not exist on EUW.")'''
 
     @link.error
     async def link_error(self, ctx, error):

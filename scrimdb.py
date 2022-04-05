@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import requests
 from bson.objectid import ObjectId
 #client = MongoClient(os.getenv('MONGO_URI'))
+from db.db_response import LinkResponse
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] - %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -36,18 +37,24 @@ def link_command(summoner_name, author):
             check_verification(author)
         if result['verified']:
             logging.info(f"{disc_name} already has verified Summoner '{result['summoner_name']}'")
-            return {"status": "verified", "summoner_name": result['summoner_name']}
-        return {"status": "created", "verify": result['verification_id'], "summoner_name": result['summoner_name']}
+            # return {"status": "verified", "summoner_name": result['summoner_name']}
+            return LinkResponse(status="verified", summoner_name=result['summoner_name'])
+        # return {"status": "created", "verify": result['verification_id'], "summoner_name": result['summoner_name']}
+        return LinkResponse(status="created", verification_id=result['verification_id'],
+                            summoner_name=result['summoner_name'])
 
     summoner_result = collection.find_one({"summoner_name": summoner_name})
     if summoner_result is not None and summoner_result['verified']:  # Summoner Name already verified
         if disc_id != summoner_result['discord_id']:  # For different user
-            return {"status": "rejected"}
-        return {"status": "verified", "summoner_name": result['summoner_name']}
+            #return {"status": "rejected"}
+            return LinkResponse(status="rejected")
+        #return {"status": "verified", "summoner_name": result['summoner_name']}
+        return LinkResponse(status="verified", summoner_name=result['summoner_name'])
 
     summoner_id = get_summoner_id(summoner_name)
     if not summoner_id: # Invalid Summoner Name
-        return {"status": "invalid"}
+        #return {"status": "invalid"}
+        return LinkResponse(status="invalid")
 
     # New User
     logging.info(f"Creating New User {disc_name}")
@@ -61,7 +68,8 @@ def link_command(summoner_name, author):
                 "verified": False}
 
     collection.insert_one(new_user)
-    return {"status": "created", "verify": ver_id, "summoner_name": summoner_name}
+    #return {"status": "created", "verify": ver_id, "summoner_name": summoner_name}
+    return LinkResponse(status="created", verification_id=ver_id, summoner_name=summoner_name)
 
     #client.close()
 
