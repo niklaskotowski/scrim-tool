@@ -302,18 +302,51 @@ def create_match(author, team_name, datetime):
     return {"status": "created"}
 
 def get_all_matches(author):
-    teamObjs = teams_collection.find()
-    return {"status" : "success", "teams" : teamObjs}
+    matchObjects = match_collection.find()
+    #obtain players for each match
+    matches_ = []
+    for match in matchObjects:   
+        matches_.append(match)     
+        players = []
+        players_t1 = []
+        players_t2 = []
+        for p_id in match['roster1']:
+            userObj = collection.find_one({"discord_id": p_id})
+            players.append(userObj['summoner_name'])
+        players_t1.append(players)
+        players = []
+        for p_id in match['roster2']:
+            userObj = collection.find_one({"discord_id": p_id})
+            players.append(userObj['summoner_name'])
+        players_t2.append(players)
+
+    return {"status" : "success", "matches" : matches_, "players_t1": players_t1, "players_t2": players_t2}
 
 def get_match(author, team_name):
-    teamObj = teams_collection.find({"name": team_name})
+    teamObj = teams_collection.find_one({"name": team_name})
     if teamObj is None:        
         logging.info(f"The team {team_name} does not exist.")
         return {"status": "team_notfound", "team_name": team_name}  
     else:
-        matches = match_collection.find({"$or" :[ {"team1": team_name}, {"team2": team_name} ] })
+        matches = match_collection.find({"$or" :[ {"team1": team_name}, {"team2": team_name} ] }) 
+        print(matches)       
+        players_1 = []
+        players_2 = []   
+        matches_ = []
+        for match in matches:   
+            matches_.append(match)     
+            players = []
+            for p_id in match['roster1']:
+                userObj = collection.find_one({"discord_id": p_id})
+                players.append(userObj['summoner_name'])
+            players_1.append(players)
+            players = []
+            for p_id in match['roster2']:
+                userObj = collection.find_one({"discord_id": p_id})
+                players.append(userObj['summoner_name'])
+            players_2.append(players)
         logging.info(f"Scheduled matches for {team_name} are returned.")
-        return {"status": "success", "matches" : matches}
+        return {"status": "success", "matches": matches_, "players_t1": players_1, "players_t2": players_2}
 
 def join_match_asteam(author, _id):
     # check if the author is owner of a team

@@ -11,7 +11,30 @@ from datetime import datetime
 # roster 1
 # team #2
 # roster 2
+swords = "\u2694\uFE0F"
+raised_hand = "\u270B"
 
+def construct_Embeds(title, match, players_t1, players_t2, team_idx):
+    embed=discord.Embed()        
+    embed.set_author(name=title)
+    embed.add_field(name="Time:", value=match['datetime'], inline=False)
+    embed.add_field(name="Team 1:", value=match['team1'], inline=True)
+    # concat members in a string
+    members1 = [str(x) for x in players_t1[team_idx]]
+    mem1_str = "\n".join(members1)
+    if mem1_str == "":
+        mem1_str = "Currently no player in this team."
+    embed.add_field(name="Roster:", value=mem1_str, inline=True)
+    embed.add_field(name='\u200b', value='\u200b', inline=False)
+    embed.add_field(name="Team 2:", value=match['team2'], inline=True)
+    members2 = [str(x) for x in players_t2[team_idx]]
+    mem2_str = "\n".join(members2)
+    if mem2_str == "":
+        mem2_str = "Currently no player in this team."
+    embed.add_field(name="Roster:", value=mem2_str, inline=True)
+    embed.add_field(name='\u200b', value='\u200b', inline=False)
+    embed.add_field(name="Matchcode:", value= match['_id'], inline=False)
+    return embed
 
 class MatchCommands(commands.Cog, name="MatchCommands"):
     def __init__(self, bot):
@@ -47,18 +70,16 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
     async def match_show_all(self, ctx):
         result = db.get_all_matches(ctx.author)
         status = result['status']
-
         send_msg = ""
         if status == "success":
-            embed=discord.Embed()
-            embed.set_author(name="Currently open matches:")
-            embed.add_field(name="Time:", value=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), inline=False)
-            embed.add_field(name="Team 1:", value="OlsCs", inline=True)
-            embed.add_field(name="Roster:", value="Secr3t\nVictoriousMuffin\nCpt Aw\n", inline=True)
-            embed.add_field(name='\u200b', value='\u200b', inline=False)
-            embed.add_field(name="Team 2:", value="OlsCock", inline=True)
-            embed.add_field(name="Roster:", value="Diviine\nRalle\nGabi ", inline=True)
-        await ctx.send(embed=embed)       
+            idx = 0
+            for match in result['matches']:
+                title = "Currently open scrim matches: "
+                embed = construct_Embeds(title, match, result['players_t1'], result['players_t2'], idx)
+                idx = idx + 1
+                message = await ctx.send(embed=embed)       
+                await message.add_reaction(raised_hand)
+                await message.add_reaction(swords)
 
     # show all scrim dates for a given team 
     @commands.command(name="match_show",
@@ -66,34 +87,17 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
     async def match_show(self, ctx, team_name):
         result = db.get_match(ctx.author, team_name)
         status = result['status']
-
-        send_msg = ""
         if status == "success":
+            i = 0
+            title = "Currently scheduled scrim matches for '" + team_name + "'"
             for match in result['matches']:
-                embed=discord.Embed()
-                string = "Currently scheduled scrim matches for '" + team_name + "'"
-                embed.set_author(name=string)
-                embed.add_field(name="Time:", value=match['datetime'], inline=False)
-                embed.add_field(name="Team 1:", value=match['team1'], inline=True)
-                # concat members in a string
-                members1 = [x for x in match['roster1']]
-                mem1_str = "\n".join(members1)
-                if mem1_str == "":
-                    mem1_str = "Currently no player in this team."
-                embed.add_field(name="Roster:", value=mem1_str, inline=True)
-                embed.add_field(name='\u200b', value='\u200b', inline=False)
-                embed.add_field(name="Team 2:", value=match['team2'], inline=True)
-                members2 = [x for x in match['roster2']]
-                mem2_str = "\n".join(members2)
-                if mem2_str == "":
-                    mem2_str = "Currently no player in this team."
-                embed.add_field(name="Roster:", value=mem2_str, inline=True)
-                embed.add_field(name='\u200b', value='\u200b', inline=False)
-                embed.add_field(name="Matchcode:", value= match['_id'], inline=False)
+                embed = construct_Embeds(title, match, result['players_t1'], result['players_t2'], i)
                 message = await ctx.send(embed=embed) 
                 #one emoji to define joining a team and one emoji to specify joining the scrim as a player
-                emoji = '\N{THUMBS UP SIGN}'
-                message.add_reaction(emoji)
+
+                await message.add_reaction(raised_hand)
+                await message.add_reaction(swords)
+                i = i+1
         elif status == "team_notfound":
             send_msg = f"Team not found.\n"
             await ctx.author.send(send_msg) 
@@ -179,8 +183,6 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
             elif status == "match_notfound":
                 send_msg = f"Match not found"
                 await channel.send(send_msg)       
-
-####Error Handling
 
 
             
