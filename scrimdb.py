@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 import requests
 from bson.objectid import ObjectId
 #client = MongoClient(os.getenv('MONGO_URI'))
-from db.db_response import LinkResponse
+from db.db_response import LinkResponse, RankedInfoResponse
+import db.lolapi_data as lol
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] - %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -72,6 +73,19 @@ def link_command(summoner_name, author):
     return LinkResponse(status="created", verification_id=ver_id, summoner_name=summoner_name)
 
     #client.close()
+
+def rankedinfo_command(author):
+    if not is_verified(author):
+        return RankedInfoResponse(status="not_verified")
+
+    disc_id = author.id
+    result = collection.find_one({"discord_id": disc_id})
+
+    if result is None:
+        return RankedInfoResponse(status="error")
+
+    data = lol.get_info(result["summoner_id"])
+    return RankedInfoResponse(status="success", data=data)
 
 def check_verification(author, region="euw1"):
     disc_id = author.id
