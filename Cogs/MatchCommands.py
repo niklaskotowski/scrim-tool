@@ -14,7 +14,7 @@ from datetime import datetime
 swords = "\u2694\uFE0F"
 raised_hand = "\u270B"
 
-def construct_Embeds(title, match, players_t1, players_t2, team_idx):
+def construct_Embeds(title, match, players_t1, players_t2, team_idx = 0):
     embed=discord.Embed()        
     embed.set_author(name=title)
     embed.add_field(name="Time:", value=match['datetime'], inline=False)
@@ -94,7 +94,6 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
                 embed = construct_Embeds(title, match, result['players_t1'], result['players_t2'], i)
                 message = await ctx.send(embed=embed) 
                 #one emoji to define joining a team and one emoji to specify joining the scrim as a player
-
                 await message.add_reaction(raised_hand)
                 await message.add_reaction(swords)
                 i = i+1
@@ -127,8 +126,13 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
 
         send_msg = ""
         if status == "success":
-            send_msg = f"You joined the scrim on {result['scrim']['datetime']}.\n"
-            match_show(ctx, result['scrim']['team1'])
+            send_msg = f"You joined the scrim on {result['match']['datetime']}.\n"
+            title = "Match:"
+            embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2'])
+            message = await ctx.send(embed=embed) 
+            #one emoji to define joining a team and one emoji to specify joining the scrim as a player
+            await message.add_reaction(raised_hand)
+            await message.add_reaction(swords)
         elif status == "no_member":
             send_msg = f"You have to be part of one of the teams in order to join the scrim as a player'.\n"
         elif status == "already_part_of_it":
@@ -146,33 +150,15 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
             message = await channel.fetch_message(reaction.message_id)
             embeds = message.embeds
             e = embeds[0].to_dict()
+            #obtain the embed in which message infos are saved
+            #match_id currently saved in the bottom row of the embed
             match_id = e['fields'][-1]['value']
-            #messsage.edit(embed = newEmbed)
             result = db.join_match_asplayer(reaction.user_id, match_id)
             status = result['status']
             send_msg = ""
             if status == "success":
-                match = result['match']
-                embed=discord.Embed()
-                string = "Scrim"
-                embed.set_author(name=string)
-                embed.add_field(name="Time:", value=match['datetime'], inline=False)
-                embed.add_field(name="Team 1:", value=match['team1'], inline=True)
-                # concat members in a string
-                members1 = [str(x) for x in result['players']]
-                mem1_str = "\n".join(members1)
-                if mem1_str == "":
-                    mem1_str = "Currently no player in this team."
-                embed.add_field(name="Roster:", value=mem1_str, inline=True)
-                embed.add_field(name='\u200b', value='\u200b', inline=False)
-                embed.add_field(name="Team 2:", value=match['team2'], inline=True)
-                members2 = [str(x) for x in result['players']]
-                mem2_str = "\n".join(members2)
-                if mem2_str == "":
-                    mem2_str = "Currently no player in this team."
-                embed.add_field(name="Roster:", value=mem2_str, inline=True)
-                embed.add_field(name='\u200b', value='\u200b', inline=False)
-                embed.add_field(name="Matchcode:", value= match['_id'], inline=False)     
+                title = "Scrim"
+                embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2']) 
                 await message.edit(embed = embed)
             elif status == "no_member":
                 send_msg = f"You have to be part of one of the teams in order to join the scrim as a player'.\n"
