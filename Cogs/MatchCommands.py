@@ -145,14 +145,18 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, reaction):
+        print(reaction.member)
+        if (reaction.member.bot == True):
+            return
         channel = self.bot.get_channel(956618562712264765)
-        if str(reaction.emoji) == "🙌":        
-            message = await channel.fetch_message(reaction.message_id)
-            embeds = message.embeds
-            e = embeds[0].to_dict()
+        message = await channel.fetch_message(reaction.message_id)
+        embeds = message.embeds
+        print(reaction)
+        e = embeds[0].to_dict()
+        match_id = e['fields'][-1]['value']
+        if str(reaction.emoji) == raised_hand:    
             #obtain the embed in which message infos are saved
-            #match_id currently saved in the bottom row of the embed
-            match_id = e['fields'][-1]['value']
+            #match_id currently saved in the bottom row of the embed            
             result = db.join_match_asplayer(reaction.user_id, match_id)
             status = result['status']
             send_msg = ""
@@ -168,8 +172,21 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
                 await channel.send(send_msg)
             elif status == "match_notfound":
                 send_msg = f"Match not found"
-                await channel.send(send_msg)       
-
+                await channel.send(send_msg)   
+        #team wants to enter scrim 
+        if str(reaction.emoji) == swords:          
+            result = db.join_match_asteam(reaction.user_id, match_id)
+            status = result['status']
+            if status == "success":
+                title = "Scrim"
+                embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2']) 
+                await message.edit(embed = embed)
+            elif status == "not_owner":
+                await channel.send(f"You have to own a team in order to join a scrim'.\n")
+            elif status == "already_part_of_it":         
+                await channel.send(f"The team is already part of the scrim.\n")
+            elif status == "full":
+                await channel.send(f"The scrim is already full.\n")
 
             
 def setup(bot):
