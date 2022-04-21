@@ -26,7 +26,7 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
         db_response = db.invite_user(ctx.author, arg1, user)
         logging.info(f"Team Invite Response: {db_response}")
         await ctx.author.send(db_response.discord_msg())
-
+        
     @commands.command(name="team_join",
                       usage="<TeamName>")
     async def team_join(self, ctx, arg1):

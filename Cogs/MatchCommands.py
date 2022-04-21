@@ -13,11 +13,15 @@ from datetime import datetime
 # roster 2
 swords = "\u2694\uFE0F"
 raised_hand = "\u270B"
+exit = 	"\u274C"
+check = "\u2705"
 
 def construct_Embeds(title, match, players_t1, players_t2, team_idx = 0):
     embed=discord.Embed()        
     embed.set_author(name=title)
     embed.add_field(name="Time:", value=match['datetime'], inline=False)
+    if (match['team1'] == ""):
+        match['team1'] = '\u200b'
     embed.add_field(name="Team 1:", value=match['team1'], inline=True)
     # concat members in a string
     members1 = [str(x) for x in players_t1[team_idx]]
@@ -26,6 +30,8 @@ def construct_Embeds(title, match, players_t1, players_t2, team_idx = 0):
         mem1_str = "Currently no player in this team."
     embed.add_field(name="Roster:", value=mem1_str, inline=True)
     embed.add_field(name='\u200b', value='\u200b', inline=False)
+    if (match['team2'] == ""):
+        match['team2'] = '\u200b'
     embed.add_field(name="Team 2:", value=match['team2'], inline=True)
     members2 = [str(x) for x in players_t2[team_idx]]
     mem2_str = "\n".join(members2)
@@ -69,17 +75,19 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
     @commands.command(name="match_show_all")
     async def match_show_all(self, ctx):
         result = db.get_all_matches(ctx.author)
+        print(result['matches'])
         status = result['status']
         send_msg = ""
         if status == "success":
             idx = 0
             for match in result['matches']:
                 title = "Currently open scrim matches: "
+                print(match)
                 embed = construct_Embeds(title, match, result['players_t1'], result['players_t2'], idx)
                 idx = idx + 1
-                message = await ctx.send(embed=embed)       
-                await message.add_reaction(raised_hand)
-                await message.add_reaction(swords)
+                message = await ctx.send(embed = embed)       
+                await message.add_reaction(check)
+                await message.add_reaction(exit)
 
     # show all scrim dates for a given team 
     @commands.command(name="match_show",
@@ -94,8 +102,8 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
                 embed = construct_Embeds(title, match, result['players_t1'], result['players_t2'], i)
                 message = await ctx.send(embed=embed) 
                 #one emoji to define joining a team and one emoji to specify joining the scrim as a player
-                await message.add_reaction(raised_hand)
-                await message.add_reaction(swords)
+                await message.add_reaction(check)
+                await message.add_reaction(exit)
                 i = i+1
         elif status == "team_notfound":
             send_msg = f"Team not found.\n"
@@ -131,8 +139,8 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
             embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2'])
             message = await ctx.send(embed=embed) 
             #one emoji to define joining a team and one emoji to specify joining the scrim as a player
-            await message.add_reaction(raised_hand)
-            await message.add_reaction(swords)
+            await message.add_reaction(check)
+            await message.add_reaction(exit)
         elif status == "no_member":
             send_msg = f"You have to be part of one of the teams in order to join the scrim as a player'.\n"
         elif status == "already_part_of_it":
@@ -145,6 +153,12 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, reaction):
+        #cases we have to divide
+        #(1) you want to join as a player
+        #(2) you want to join as a team
+        #(3) you want to leave as a player
+        #(4) you want to leave with your team
+        #each player can only be part of one team, thus we merge (1) & (2) and (3) & (4)
         print(reaction.member)
         if (reaction.member.bot == True):
             return
@@ -163,7 +177,7 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
             if status == "success":
                 title = "Scrim"
                 embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2']) 
-                await message.edit(embed = embed)
+                await message.edit(embed=embed)
             elif status == "no_member":
                 send_msg = f"You have to be part of one of the teams in order to join the scrim as a player'.\n"
                 await channel.send(send_msg)
@@ -180,14 +194,65 @@ class MatchCommands(commands.Cog, name="MatchCommands"):
             if status == "success":
                 title = "Scrim"
                 embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2']) 
-                await message.edit(embed = embed)
+                await message.edit(embed=embed)
             elif status == "not_owner":
                 await channel.send(f"You have to own a team in order to join a scrim'.\n")
             elif status == "already_part_of_it":         
                 await channel.send(f"The team is already part of the scrim.\n")
             elif status == "full":
                 await channel.send(f"The scrim is already full.\n")
-
+        if str(reaction.emoji) == check:
+            # possible intentions
+            # want to join as a player, want to join as a team
+            # cases:
+            # -> player does not own a team and his team is not participating
+            # -> player does own a team-> requests to join with his team
+            # -> player is member of a team -> requests to join as a plaer
+            teamOwner = db.getTeamByOwnerID(reaction.user_id)
+            teamMember = db.getTeamByMemberID(reaction.user_id)
+            if (teamOwner['status'] == "success"):
+                result = db.join_match_asTeam(reaction.user_id, match_id)
+                if (result['status'] == "fail"):
+                    assert(False)
+                elif (result['status'] == "success"):
+                    title = "Scrim"
+                    embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2']) 
+                    await message.edit(embed=embed)
+            if (teamMember['status'] == "success"):
+                result = db.join_match_asPlayer(reaction.user_id, match_id)
+                title = "Scrim"
+                embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2']) 
+                await message.edit(embed = embed)
+        if str(reaction.emoji) == exit:
+            # it should be possible that the owner leaves the scrim without removing the team from the scrim
+            # initially we have to verify that the player is part of the scrim, thus we start with leave match as player:
+            # in case we receive a negative response we continue by attempting to remove the team
+            # cases:
+            # -> player is not part of the scrim nor is his team => return ;
+            # -> player is not part of the scrim but his team => remove team
+            # -> player is part of the scrim => remove player
+            team = db.getTeamByOwnerID(reaction.user_id)
+            print(team)
+            if (db.isPlayerInScrim(reaction.user_id, match_id)):
+                print("player in scrim")
+                result = db.leave_match_asPlayer(reaction.user_id, match_id)
+                if (result['status'] == "fail"):
+                    assert(False)
+                else: 
+                    title = "Scrim"
+                    embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2']) 
+                    await message.edit(embed=embed)                    
+            elif(team['status'] == "success"):
+                print("here")
+                print(team['team']['name'])
+                if(db.isTeamInScrim(team['team']['name'], match_id)):
+                    result = db.leave_match_asTeam(reaction.user_id, match_id)
+                    print("result22", result)
+                    if (result['status'] != "fail"):
+                        title = "Scrim"
+                        embed = construct_Embeds(title, result['match'], result['players_t1'], result['players_t2']) 
+                        print("embed success")
+                        await message.edit(embed=embed)
             
 def setup(bot):
     bot.add_cog(MatchCommands(bot))
