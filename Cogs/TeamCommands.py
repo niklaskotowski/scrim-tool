@@ -3,6 +3,13 @@ from discord.ext import commands
 import scrimdb as db
 import logging
 
+# TODO:
+# create a !team commands that shows additional functionality by displaying emojis and corresponding functions 
+# emoji1 -> team create
+# emoji2 -> team show
+# emoji3 -> when the function requires an argument, send a private message such that the user has to enter the argument he is asked for
+
+# create an embed template to display teams
 
 class TeamCommands(commands.Cog, name="TeamCommands"):
     def __init__(self, bot):

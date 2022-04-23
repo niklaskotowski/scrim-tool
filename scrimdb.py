@@ -145,27 +145,18 @@ def get_summoner_id(summoner_name, region="euw1"):
 
 
 def create_team(author, team_name):
-    print("in_db")
     disc_name = str(author)
     disc_id = author.id
 
     team = teams_collection.find_one({"name": team_name})
-    print("in_coll1")
     owner = collection.find_one({"discord_id": disc_id})
-    print("in_coll2")
+
     if team is not None:
         logging.info(f"A team with this name already exists '{team_name}'")
-        # return {"status": "exists", "team_name": team_name}
         return CreateTeamResponse(status="exists", team_name=team_name)
 
-    if owner is not None:
-        if not owner['verified']:
-            logging.info(f"The team owner has to link a league account !link <SummonerName>.")
-            # return {"status": "not_verified", "disc_name": disc_name}
-            return CreateTeamResponse(status="not_verified", disc_name=disc_name)
-    else:
+    if owner is None or not owner['verified']:
         logging.info(f"The team owner has to link a league account !link <SummonerName>.")
-        # return {"status": "not_verified", "disc_name": disc_name}
         return CreateTeamResponse(status="not_verified", disc_name=disc_name)
     # New Team
     logging.info(f"Creating New Team {team_name}")
@@ -174,7 +165,6 @@ def create_team(author, team_name):
                 "member_ids": [disc_id],
                 "invitation_ids": []}
     teams_collection.insert_one(new_team)
-    # return {"status": "created", "team_name": team_name, "owner": owner}
     return CreateTeamResponse(status="created", team_name=team_name, owner=owner)
 
 
@@ -261,20 +251,16 @@ def leave_team(author, team_name):
     # verify that the given team name exists
     if teamObj is None:
         logging.info(f"The team {team_name} does not exist.")
-        # return {"status": "team_notfound", "team_name": team_name}
         return TeamLeaveResponse(status="team_notfound", team_name=team_name)
 
     # check that the user is part of the team
     if not author_disc_id in teamObj['member_ids']:
         logging.info(f"The user {author_name} is not part of {team_name}.")
-        # return {"status": "no_member", "user_name": author_name}
         return TeamLeaveResponse(status="no_member", user_name=author_name)
     else:
-        # TODO: if the user is the team_owner the team_owner rights have to be transferred before leaving
         logging.info(f"{author_name} has left {team_name}.")
         teams_collection.update_one({"name": team_name},
                                     {"$pull": {"member_ids": author_disc_id}})
-        # return {"status": "success", "team_name": team_name}
         return TeamLeaveResponse(status="success", team_name=team_name)
 
 
@@ -286,18 +272,15 @@ def remove_team(author, team_name):
     # verify that the given team name exists
     if teamObj is None:
         logging.info(f"The team {team_name} does not exist.")
-        # return {"status": "team_notfound", "team_name": team_name}
         return TeamDeleteResponse(status="team_notfound", team_name=team_name)
 
     # check that the author is the team owner
     if not author_disc_id == teamObj['owner_id']:
         logging.info(f"Only the team owner is allowed to delete the team.")
-        # return {"status": "not_owner", "user_name": author_name}
         return TeamDeleteResponse(status="not_owner", user_name=author_name)
     else:
         logging.info(f"{author_name} has deleted '{team_name}'.")
         teams_collection.delete_one({"name": team_name})
-        # return {"status": "success", "team_name": team_name}
         return TeamDeleteResponse(status="success", team_name=team_name)
 
 
@@ -343,7 +326,8 @@ def get_all_teams(author):
     teams = []
     for team in teamObj:
         teams.append(team)
-    # return {"status": "success", "teams": teams}
+    if not teams:
+        return TeamListResponse(status="no_team")
     return TeamListResponse(status="success", teams=teams)
 
 def isPlayerInScrim(user_id, match_id):

@@ -177,10 +177,10 @@ class TeamDeleteResponse(DBResponse):
     def __post_init__(self) -> None:
         if self.status == "team_notfound":
             self.msg = f"No team named '{self.team_name}' has been found in the database.\n"
-        elif self.status == "no_member":
-            self.msg = f"You are not a member of '{self.team_name}'."
+        elif self.status == "not_owner":
+            self.msg = f"You are not the owner of '{self.team_name}'."
         elif self.status == "success":
-            self.msg = f"You successfully left '{self.team_name}'."
+            self.msg = f"You successfully deleted '{self.team_name}'."
 
 
 @dataclass
@@ -213,5 +213,8 @@ class TeamListResponse(DBResponse):
 
     def __post_init__(self) -> None:
         self.msg = ""
-        for team in self.teams:
-            self.msg += f"Teamname: {team['name']}.\n"
+        if self.status == "no_team":
+            self.msg = f"Currently is no team included in the database."
+        else:
+            for team in self.teams:
+                self.msg += f"Teamname: {team['name']}.\n"
