@@ -315,7 +315,7 @@ def get_team(author, team_name):
         players.append(collection.find_one({"discord_id": player_id}))
     logging.info(f"Team info for {team_name} has been successfully requested.")
     # return {"status": "success", "teamObj": teamObj, "members": players}
-    return TeamShowResponse(status="success", teamObj=teamObj, members=players)
+    return TeamShowResponse(status="success", team_name = teamObj['name'], teamObj=teamObj, members=players)
 
 def getTeamByOwnerID(user_id):
     userObj = collection.find_one({"discord_id": user_id})

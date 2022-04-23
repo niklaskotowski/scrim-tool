@@ -89,7 +89,7 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
             await ctx.author.send(f"Error: You need to provide a team name\nUsage: !team_delete <TeamName>")
 
     @team_show.error
-    async def team_leave_error(self, ctx, error):
+    async def team_show_error(self, ctx, error):
         if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
             await ctx.author.send(f"Error: You need to provide a team name\nUsage: !team_show <TeamName>")
 

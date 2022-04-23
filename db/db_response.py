@@ -200,7 +200,7 @@ class TeamShowResponse(DBResponse):
         else:
             self.msg = f"Teamname: {self.team_name}\n "
             for x in self.members:
-                self.msg += f"Player: {x.summoner_name}\n"
+                self.msg += f"Player: {x['summoner_name']}\n"
 
 
 @dataclass
