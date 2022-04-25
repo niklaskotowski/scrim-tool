@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import scrimdb as db
 import logging
+import interactions
 
 # TODO:
 # create a !team commands that shows additional functionality by displaying emojis and corresponding functions 
@@ -10,6 +11,10 @@ import logging
 # emoji3 -> when the function requires an argument, send a private message such that the user has to enter the argument he is asked for
 
 # create an embed template to display teams
+swords = "\u2694\uFE0F"
+raised_hand = "\u270B"
+exit = 	"\u274C"
+check = "\u2705"
 
 class TeamCommands(commands.Cog, name="TeamCommands"):
     def __init__(self, bot):
@@ -19,6 +24,17 @@ class TeamCommands(commands.Cog, name="TeamCommands"):
     @commands.Cog.listener()
     async def on_ready(self):
         logging.info("Team Commands loaded")
+
+
+    @commands.command(name="team_overview")
+    async def team_overview(self, ctx):
+        # no database access requiered for this operation
+        button = interactions.Button(
+            style=interactions.ButtonStyle.PRIMARY,
+            label="hello world!",
+            custom_id="hello"
+        )
+        await ctx.send("testing", components=button)
 
     @commands.command(name="team_create",
                       usage="<TeamName>")
