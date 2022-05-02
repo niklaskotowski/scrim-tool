@@ -9,6 +9,8 @@ import sys
 import logging
 import interactions
 
+from Cogs.TeamCommands import TeamCommands
+
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 help_command = commands.DefaultHelpCommand(
@@ -41,16 +43,8 @@ async def on_ready():
     print(f' has connected to Discord!')
 
 
-@bot.command(name="team_overview",
-            description="command test")
-async def team_overview(ctx: interactions.CommandContext):
-    # no database access requiered for this operation    
-    button = interactions.Button(
-        style=interactions.ButtonStyle.PRIMARY,
-        label="hello world!",
-        custom_id="hello"
-    )
-    await ctx.send("testing", components=button)
+bot.load('Cogs.MainUtility')
+bot.load('Cogs.TeamCommands')
 
 bot.start() 
 

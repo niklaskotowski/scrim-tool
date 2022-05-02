@@ -145,8 +145,8 @@ def get_summoner_id(summoner_name, region="euw1"):
 
 
 def create_team(author, team_name):
-    disc_name = str(author)
-    disc_id = author.id
+    disc_name = author._json['user']['username']
+    disc_id = int(author._json['user']['id'])
 
     team = teams_collection.find_one({"name": team_name})
     owner = collection.find_one({"discord_id": disc_id})
