@@ -143,6 +143,21 @@ def get_summoner_id(summoner_name, region="euw1"):
 
     return str(r.json()['id'])
 
+def is_Owner(user_id):
+    result = teams_collection.find_one({'owner_id': user_id})
+    return result != None
+
+def has_Team(user_id):
+    result = teams_collection.find_one({"member_ids": {"$in": [user_id]}})
+    print(result)
+    return result != None
+
+def get_UserByName(user_name):
+    result = collection.fine_one({})
+
+def get_all_Users():
+    cursor = collection.find({})
+    return cursor
 
 def create_team(author, team_name):
     disc_name = author._json['user']['username']
@@ -168,42 +183,37 @@ def create_team(author, team_name):
     return CreateTeamResponse(status="created", team_name=team_name, owner=owner)
 
 
-def invite_user(author, team_name, invitee):
-    author_disc_id = author.id
-    # find user_object
-    invitee_id = invitee.id
-    teamObj = teams_collection.find_one({"name": team_name})
+def invite_user(author_id, team_id, invitee_id):
+    # find user_object    
+    teamObj = teams_collection.find_one({"_id": ObjectId(team_id)})
+    if (invitee_id in teamObj['invitation_ids']):
+        return InviteUserResponse(status="already_invited")
     # verify that the given team name exists
     if teamObj is None:
-        logging.info(f"The team {team_name} does not exist.")
-        # return {"status": "team_notfound", "team_name": team_name}
-        return InviteUserResponse(status="team_notfound", team_name=team_name)
+        logging.info(f"The team does not exist.")
+        return InviteUserResponse(status="team_notfound")
 
     # check if the invitee is a verified user
     inviteeObj = collection.find_one({"discord_id": invitee_id})
-    assert (inviteeObj != None)
+    
     if not inviteeObj['verified']:
-        logging.info(f"The user {invitee.name} is not verified.")
-        # return {"status": "invitee_not_verified", "user_name": invitee.name}
-        return InviteUserResponse(status="invitee_not_verified", user_name=invitee.name)
+        logging.info(f"The user {invitee_id} is not verified.")
+        return InviteUserResponse(status="invitee_not_verified", user_name=inviteeObj['discord_name'])
 
-    if not teamObj['owner_id'] == author_disc_id:
+    if not teamObj['owner_id'] == author_id:
         logging.info(f"Only the team owner is authorized to invite players.")
         # return {"status": "notowner"}
         return InviteUserResponse(status="notowner")
 
-    ownerObj = collection.find_one({"discord_id": author_disc_id})
-    assert (ownerObj['verified'])
 
     # New Invitee
-    logging.info(f"Creating an invitation to team {team_name}.")
+    logging.info(f"Creating an invitation to team {team_id}.")
 
-    teams_collection.update_one({"name": team_name},
+    teams_collection.update_one({"_id": ObjectId(team_id)},
                                 {"$push": {
                                     "invitation_ids": invitee_id}})  # can be added as argument to create if list does not exist
 
-    # return {"status": "success", "team_name": team_name, "invitee_name": invitee.name}
-    return InviteUserResponse(status="success", team_name=team_name, invitee_name=invitee.name)
+    return InviteUserResponse(status="success", user_name=inviteeObj['discord_name'], team_name=teamObj['name'])
 
 
 def join_team(author, team_name):
@@ -320,7 +330,7 @@ def getTeamByMemberID(user_id):
     else:
         return {"status": "no_team"}
 
-def get_all_teams(author):
+def get_all_teams():
     teamObj = teams_collection.find()
     # verify that the given team name exists
     teams = []

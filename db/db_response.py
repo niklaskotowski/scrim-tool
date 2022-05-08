@@ -112,13 +112,15 @@ class InviteUserResponse(DBResponse):
 
     def __post_init__(self) -> None:
         if self.status == "team_notfound":
-            self.msg = f"No team named '{self.team_name}' has been found in the database."
+            self.msg = f"No team with the given name has been found in the database."
         elif self.status == "invitee_not_verified":
             self.msg = f"The player you are trying to invite is not verified."
         elif self.status == "not_owner":
             self.msg = f"Only the team owner is allowed to invite new players."
         elif self.status == "success":
-            self.msg = f"{self.user.name} has been successfully invited to '{self.team_name}'."
+            self.msg = f"{self.user_name} has been successfully invited to '{self.team_name}'."
+        elif self.status == "already_invited":
+            self.msg = f"User is already invited."
 
 
 @dataclass
