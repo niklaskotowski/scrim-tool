@@ -148,9 +148,8 @@ class TeamJoinResponse(DBResponse):
 @dataclass
 class TeamLeaveResponse(DBResponse):
     status: str
-    team_name: str = None
-    user_name: str = None
-    invitee_name: str = None
+    team_id: int = None
+    user_id: int = None
     msg: str = field(init=False, repr=False)
 
     def discord_msg(self):
@@ -158,19 +157,18 @@ class TeamLeaveResponse(DBResponse):
 
     def __post_init__(self) -> None:
         if self.status == "team_notfound":
-            self.msg = f"No team named '{self.team_name}' has been found in the database.\n"
+            self.msg = f"No team with id '{self.team_id}' has been found in the database.\n"
         elif self.status == "no_member":
-            self.msg = f"You are not a member of '{self.team_name}'."
+            self.msg = f"You are not a member of team:'{self.team_id}'."
         elif self.status == "success":
-            self.msg = f"You successfully left '{self.team_name}'."
+            self.msg = f"You successfully left team'{self.team_id}'."
 
 
 @dataclass
 class TeamDeleteResponse(DBResponse):
     status: str
-    team_name: str = None
-    user_name: str = None
-    invitee_name: str = None
+    team_id: int = None
+    user_id: int = None
     msg: str = field(init=False, repr=False)
 
     def discord_msg(self):
@@ -178,11 +176,11 @@ class TeamDeleteResponse(DBResponse):
 
     def __post_init__(self) -> None:
         if self.status == "team_notfound":
-            self.msg = f"No team named '{self.team_name}' has been found in the database.\n"
+            self.msg = f"No team with id '{self.team_id}' has been found in the database.\n"
         elif self.status == "not_owner":
-            self.msg = f"You are not the owner of '{self.team_name}'."
+            self.msg = f"You are not the owner of the team with id '{self.team_id}'."
         elif self.status == "success":
-            self.msg = f"You successfully deleted '{self.team_name}'."
+            self.msg = f"You successfully deleted the team with id '{self.team_id}'."
 
 
 @dataclass

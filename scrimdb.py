@@ -148,8 +148,13 @@ def is_Owner(user_id):
     return result != None
 
 def has_Team(user_id):
-    result = teams_collection.find_one({"member_ids": {"$in": [user_id]}})
+    result = teams_collection.find_one({"$or": [{"member_ids": {"$in": [user_id]}},
+                                               {"owner_id": user_id}]})
     print(result)
+    return result != None
+
+def isPartofATeam(user_id):
+    result = teams_collection.find_one({"member_ids": {"$in": [user_id]}})                                               
     return result != None
 
 def get_UserByName(user_name):
@@ -157,6 +162,13 @@ def get_UserByName(user_name):
 
 def get_all_Users():
     cursor = collection.find({})
+    return cursor
+
+# returns users that can be invited
+def get_all_validUsers(team_id):    
+    team = teams_collection.find_one({'_id': team_id})
+    cursor = collection.find({"$and": [{'discord_id': {"$nin": team['invitation_ids']}},
+                                       {'discord_id': {"$ne": team['owner_id']}}]})
     return cursor
 
 def create_team(author, team_name):
@@ -253,45 +265,39 @@ def join_team(author, team_name):
         return TeamJoinResponse(status="not_verified", team_name=team_name)
 
 
-def leave_team(author, team_name):
-    author_name = str(author)
-    author_disc_id = author.id
-
-    teamObj = teams_collection.find_one({"name": team_name})
+def leave_team(author_id, team_id):
+    teamObj = teams_collection.find_one({"_id": team_id})
     # verify that the given team name exists
     if teamObj is None:
-        logging.info(f"The team {team_name} does not exist.")
-        return TeamLeaveResponse(status="team_notfound", team_name=team_name)
+        logging.info(f"The team {team_id} does not exist.")
+        return TeamLeaveResponse(status="team_notfound", team_id=team_id)
 
     # check that the user is part of the team
-    if not author_disc_id in teamObj['member_ids']:
-        logging.info(f"The user {author_name} is not part of {team_name}.")
-        return TeamLeaveResponse(status="no_member", user_name=author_name)
+    if not author_id in teamObj['member_ids']:
+        logging.info(f"The user {author_id} is not part of {team_id}.")
+        return TeamLeaveResponse(status="no_member", user_id=author_id)
     else:
-        logging.info(f"{author_name} has left {team_name}.")
-        teams_collection.update_one({"name": team_name},
-                                    {"$pull": {"member_ids": author_disc_id}})
-        return TeamLeaveResponse(status="success", team_name=team_name)
+        logging.info(f"{author_id} has left {team_id}.")
+        teams_collection.update_one({"_id": team_id},
+                                    {"$pull": {"member_ids": author_id}})
+        return TeamLeaveResponse(status="success", team_id=team_id)
 
 
-def remove_team(author, team_name):
-    author_name = str(author)
-    author_disc_id = author.id
-
-    teamObj = teams_collection.find_one({"name": team_name})
+def remove_team(author_id, team_id):
+    teamObj = teams_collection.find_one({"_id": team_id})
     # verify that the given team name exists
     if teamObj is None:
-        logging.info(f"The team {team_name} does not exist.")
-        return TeamDeleteResponse(status="team_notfound", team_name=team_name)
+        logging.info(f"The team {team_id} does not exist.")
+        return TeamDeleteResponse(status="team_notfound", team_id=team_id)
 
     # check that the author is the team owner
-    if not author_disc_id == teamObj['owner_id']:
+    if not author_id == teamObj['owner_id']:
         logging.info(f"Only the team owner is allowed to delete the team.")
-        return TeamDeleteResponse(status="not_owner", user_name=author_name)
+        return TeamDeleteResponse(status="not_owner", user_id=author_id)
     else:
-        logging.info(f"{author_name} has deleted '{team_name}'.")
-        teams_collection.delete_one({"name": team_name})
-        return TeamDeleteResponse(status="success", team_name=team_name)
+        logging.info(f"{author_id} has deleted '{team_id}'.")
+        teams_collection.delete_one({"_id": team_id})
+        return TeamDeleteResponse(status="success", team_id=team_id)
 
 
 def get_team(author, team_name):

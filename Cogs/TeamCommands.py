@@ -110,7 +110,6 @@ class TeamCommands(interactions.Extension):
     #     await ctx.author.send(db_response.discord_msg())
 
     ####SHOW MY_TEAM --- OF ANY TEAM####
-    ####Invite User in Team CMD####    
     @interactions.extension_component("show_myTeam")
     async def show_myTeam(self, ctx):
         # embed showing the current team
@@ -142,18 +141,24 @@ class TeamCommands(interactions.Extension):
             label="Delete",
             custom_id="delete_Team"
         )
-        if (db.is_Owner(user_id)):
+        if (db.is_Owner(user_id) and db.isPartofATeam(user_id)):
             buttons = [invite_MemberBT, leave_TeamBT, deleteTeamBT]
-        else:
+        elif(db.is_Owner(user_id) and not db.isPartofATeam(user_id)):
+            buttons = [invite_MemberBT, deleteTeamBT]
+        elif(db.isPartofATeam(user_id) and not db.is_Owner(user_id)):
             buttons = [leave_TeamBT]
+        else:
+            buttons = []
         row = interactions.ActionRow(components = buttons) 
         await ctx.send(embeds=[embed], components=row, ephemeral=True)
 
-
+    ####Invite User in Team CMD####    
     @interactions.extension_component("invite_User")
     async def invite_User(self, ctx):
         userOptions = []
-        UserCursor = db.get_all_Users()
+        author_id = int(ctx.author._json['user']['id'])
+        team_id = db.getTeamByOwnerID(author_id)['team']['_id']
+        UserCursor = db.get_all_validUsers(team_id)
         for user in UserCursor:
             Soption = interactions.SelectOption(
                 label=str(user['discord_name']),
@@ -161,26 +166,15 @@ class TeamCommands(interactions.Extension):
                 description=str(user['summoner_name']),
             )
             userOptions.append(Soption)
-
-        SMenu = interactions.SelectMenu(
-            options=userOptions,
-            placeholder="Which user should be invited?",
-            custom_id="db_invite_Player",
-        )
-        # playerNameInput = interactions.TextInput(
-        #     style=interactions.TextStyleType.SHORT,
-        #     label="Enter a player name",
-        #     custom_id="text_input_response",
-        #     min_length=1,
-        #     max_length=20,
-        # )
-        # modalPlayerInput = interactions.Modal(
-        #     title="Player Name",
-        #     custom_id="db_invite_Player",
-        #     components=[playerNameInput],
-        # )
-        # await ctx.popup(modalPlayerInput)
-        await ctx.send("", components=[SMenu], ephemeral=True)
+        if(userOptions):
+            SMenu = interactions.SelectMenu(
+                options=userOptions,
+                placeholder="Which user should be invited?",
+                custom_id="db_invite_Player",
+            )        
+            await ctx.send("", components=[SMenu], ephemeral=True)
+        else:
+            await ctx.send("Currently all users are either invited or already have a team.", ephemeral=True)
 
     @interactions.extension_component("db_invite_Player")
     async def db_invite_Player(self, ctx, response: int):
@@ -192,6 +186,26 @@ class TeamCommands(interactions.Extension):
         logging.info(f"Team Invite Response: {db_response}")
         await ctx.author.send(db_response.discord_msg())
 
+    ####Leave Team CMD####    
+    @interactions.extension_component("leave_Team")
+    async def leave_team(self, ctx):
+        author_id = int(ctx.author._json['user']['id'])
+        team = db.getTeamByMemberID(author_id)
+        if(team['status'] != "no_team"):
+            db_response = db.leave_team(author_id, team["team"]["_id"])
+            await ctx.author.send(db_response.discord_msg())
+        else:
+            await ctx.author.send("You are currently not part of a team.")
+
+
+    ####Delete Team CMD####    
+    @interactions.extension_component("delete_Team")
+    async def delete_team(self, ctx):
+        author_id = int(ctx.author._json['user']['id'])
+        team_id = db.getTeamByOwnerID(author_id)['team']['_id']
+        db_response = db.remove_team(author_id, team_id)
+        await ctx.author.send(db_response.discord_msg())
+            
     # @commands.command(name="team_invite",
     #                   usage="<TeamName> <PlayerName>")
     # async def team_invite(self, ctx, arg1, user: discord.Member = None):
