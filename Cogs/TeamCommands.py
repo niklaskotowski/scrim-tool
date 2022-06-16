@@ -5,6 +5,7 @@ from discord.ext import commands
 import scrimdb as db
 import logging
 import interactions
+from bson.objectid import ObjectId
 
 # TODO:
 # construct a standart obj of team infos and member infos which is returned by calling get_team
@@ -14,6 +15,9 @@ swords = "\u2694\uFE0F"
 raised_hand = "\u270B"
 exit = 	"\u274C"
 check = "\u2705"
+
+#0-> " ",1 -> Open Invitation
+invitationMap = ['______________', 'Open Invitation']
 
 class TeamCommands(interactions.Extension):
     def __init__(self, client):
@@ -73,93 +77,54 @@ class TeamCommands(interactions.Extension):
     async def db_create_team(self, ctx, response: str):
         user_id = int(ctx.author._json['user']['id'])
         db_response = db.create_team(ctx.author, response)
-        embed = db.get_Team_Embed(db_response['_id'])
         embed, row = db.get_Team_Embed_Buttons(db_response['_id'], user_id)
-        await ctx.send(embeds=[embed], components=row, ephemeral=False)
+        await ctx.send(embeds=[embed], components=row, ephemeral=True)
 
     #Show all Teams
     @interactions.extension_component("show_teams")
     async def show_teams(self, ctx):
-        db_response = db.get_all_teams()
-        logging.info(f"Team List Response: {db_response}")
-        await ctx.send(db_response.discord_msg(), ephemeral=False)   
+        teamObjects = db.get_all_teams()
+        user_id = int(ctx.author._json['user']['id'])
+        embeds = []
+        row = []
+        TeamOptionList = []
+        for t in teamObjects:
+            invited = False
+            if user_id in t['invitation_ids']:
+                invited = True
+            Soption = interactions.SelectOption(
+                label=str(t['name']),
+                value=str(t['_id']),
+                description=str(invitationMap[invited]),
+            )
+            TeamOptionList.append(Soption)
+        if(TeamOptionList):
+            SMenu = interactions.SelectMenu(
+                options=TeamOptionList,
+                placeholder="List of Teams",
+                custom_id="showTeamWithID",
+            )        
+            await ctx.send("", components=[SMenu], ephemeral=True)
+        else:
+            await ctx.send("Currently there are not teams.", ephemeral=True)
 
-    # ####Show specified Team CMD####
-    # @interactions.extension_component("show_t")
-    # async def show_t(self, ctx):
-    #     teamNameInput = interactions.TextInput(
-    #         style=interactions.TextStyleType.SHORT,
-    #         label="Enter the name of the team:",
-    #         custom_id="text_input_response",
-    #         min_length=1,
-    #         max_length=20,
-    #     )
-    #     modalTeamInput = interactions.Modal(
-    #         title="Team Name",
-    #         custom_id="db_get_team",
-    #         components=[teamNameInput],
-    #     )
-    #     await ctx.popup(modalTeamInput)
-
-    # @interactions.extension_modal("db_get_team")
-    # async def db_get_team(self, ctx, response:str):
-    #     # list team members
-    #     # list avg elo
-    #     # list w/l ratio
-    #     db_response = db.get_team(ctx.author, response)
-    #     logging.info(f"Team Show Response: {db_response}")
-    #     await ctx.author.send(db_response.discord_msg())
+    #show the team with the given id
+    @interactions.extension_component("showTeamWithID")
+    async def showTeamWithID(self, ctx, response: str):
+        # embed showing the current team
+        team_id = str(response[0])
+        user_id = int(ctx.author._json['user']['id'])
+        team_Obj = db.getTeamByTeamID(ObjectId(team_id))        
+        embed, row = db.get_Team_Embed_Buttons(team_Obj["_id"], user_id)
+        await ctx.send(embeds=[embed], components=row, ephemeral=True)
 
     #show the team of the current user
     @interactions.extension_component("show_myTeam")
     async def show_myTeam(self, ctx):
         # embed showing the current team
-        db_response = db.getTeamByOwnerID(int(ctx.author._json['user']['id']))
-        teamInfo = db_response['team']
-        member_ids = [x for x in teamInfo['member_ids']]
-        db_response = db.getUsersByIDs(member_ids)
-        user_Objects = db_response['userObjects']
-        member_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in user_Objects]
-        member_string = "".join(member_list)
-        if(member_string == ""):
-            member_string = "Currently empty"
-        playerField = interactions.EmbedField(
-            name="Member: ",
-            value=member_string,
-            inline=True,
-        )
-        statisticsField = interactions.EmbedField(
-            name="Statistics: ",
-            value='Wins: 6, Defeats: 9',
-            inline=True,
-        )
-        embed=interactions.Embed(title=" ", color=2, description="Team Hub (" + teamInfo['name'] + ")", fields=[playerField, statisticsField])
         user_id = int(ctx.author._json['user']['id'])
-
-        invite_MemberBT = interactions.Button(
-            style=interactions.ButtonStyle.SECONDARY,
-            label="Invite User",
-            custom_id="invite_User"
-        )
-        leave_TeamBT = interactions.Button(
-            style=interactions.ButtonStyle.SECONDARY,
-            label="Leave",
-            custom_id="leave_Team"
-        )
-        deleteTeamBT = interactions.Button(
-            style=interactions.ButtonStyle.SECONDARY,
-            label="Delete",
-            custom_id="delete_Team"
-        )
-        if (db.is_Owner(user_id) and db.isPartofATeam(user_id)):
-            buttons = [invite_MemberBT, leave_TeamBT, deleteTeamBT]
-        elif(db.is_Owner(user_id) and not db.isPartofATeam(user_id)):
-            buttons = [invite_MemberBT, deleteTeamBT]
-        elif(db.isPartofATeam(user_id) and not db.is_Owner(user_id)):
-            buttons = [leave_TeamBT]
-        else:
-            buttons = []
-        row = interactions.ActionRow(components = buttons) 
+        db_response = db.getTeamByOwnerID(user_id)
+        embed, row = db.get_Team_Embed_Buttons(db_response["team"]["_id"], user_id)
         await ctx.send(embeds=[embed], components=row, ephemeral=True)
 
     #Invite User
@@ -203,12 +168,25 @@ class TeamCommands(interactions.Extension):
         user_id = int(ctx.author._json['user']['id'])
         team = db.getTeamByMemberID(user_id)
         if(team['status'] != "no_team"):
-            db_response = db.leave_team(user_id, team["team"]["_id"])
+            db.leave_team(user_id, team["team"]["_id"])
             embed, row = db.get_Team_Embed_Buttons(team["team"]["_id"], user_id)
-            await ctx.send(embeds=[embed], components=row, ephemeral=False)
+            await ctx.send(embeds=[embed], components=row, ephemeral=True)
         else:
             await ctx.send("You are currently not part of a team.", ephemeral=True)
 
+    #Join Team
+    @interactions.extension_component("join_Team")
+    async def join_team(self, ctx):
+        user_id = int(ctx.author._json['user']['id'])
+        teamNameInfo = ctx._json['message']['embeds'][0]['description']
+        teamName = teamNameInfo.split("(")[1][:-1]
+        team = db.getTeamByTeamName(str(teamName))
+        if(team):
+            db.join_team(user_id, team["_id"])
+            embed, row = db.get_Team_Embed_Buttons(team["_id"], user_id)
+            await ctx.send(embeds=[embed], components=row, ephemeral=True)
+        else:
+            await ctx.send("Something went wrong.", ephemeral=True)
 
     #Delete Team
     @interactions.extension_component("delete_Team")

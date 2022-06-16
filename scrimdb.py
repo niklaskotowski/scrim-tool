@@ -158,6 +158,21 @@ def isPartofATeam(user_id):
     result = teams_collection.find_one({"member_ids": {"$in": [user_id]}})                                               
     return result != None
 
+def isPartofTeamID(user_id, team_id):
+    teamObj = teams_collection.find_one({"_id": ObjectId(team_id)})
+    if user_id in teamObj['member_ids']:
+        return True
+    else:
+        return False
+
+
+def isInvitedIntoTeamID(user_id, team_id):
+    teamObj = teams_collection.find_one({"_id": ObjectId(team_id)})
+    if user_id in teamObj['invitation_ids']:
+        return True
+    else:
+        return False
+
 def get_UserByName(user_name):
     result = collection.fine_one({})
 
@@ -175,6 +190,9 @@ def get_all_validUsers(team_id):
 
 def getTeamByTeamID(team_id):
     return teams_collection.find_one({'_id': team_id})
+
+def getTeamByTeamName(team_name):
+    return teams_collection.find_one({'name': team_name})
 
 def get_Team_Embed(team_id):
     teamObj = getTeamByTeamID(team_id)
@@ -226,17 +244,24 @@ def get_Team_Embed_Buttons(team_id, user_id):
         label="Leave",
         custom_id="leave_Team"
     )
+    join_TeamBT = interactions.Button(
+        style=interactions.ButtonStyle.SECONDARY,
+        label="Join",
+        custom_id="join_Team"
+    )
     deleteTeamBT = interactions.Button(
         style=interactions.ButtonStyle.SECONDARY,
         label="Delete",
         custom_id="delete_Team"
     )
-    if (is_Owner(user_id) and isPartofATeam(user_id)):
+    if (is_Owner(user_id) and isPartofTeamID(user_id, teamObj['_id'])):
         buttons = [invite_MemberBT, leave_TeamBT, deleteTeamBT]
-    elif(is_Owner(user_id) and not isPartofATeam(user_id)):
-        buttons = [invite_MemberBT, deleteTeamBT]
-    elif(isPartofATeam(user_id) and not is_Owner(user_id)):
+    elif(is_Owner(user_id) and not isPartofTeamID(user_id, teamObj['_id'])):
+        buttons = [invite_MemberBT, join_TeamBT, deleteTeamBT]
+    elif(isPartofTeamID(user_id, teamObj['_id']) and not is_Owner(user_id)):
         buttons = [leave_TeamBT]
+    elif(not isPartofTeamID(user_id, teamObj['_id']) and isInvitedIntoTeamID(user_id, teamObj['_id'])):
+        buttons = [join_TeamBT]
     else:
         buttons = []
     row = interactions.ActionRow(components = buttons) 
@@ -300,41 +325,15 @@ def invite_user(author_id, team_id, invitee_id):
     return InviteUserResponse(status="success", user_name=inviteeObj['discord_name'], team_name=teamObj['name'])
 
 
-def join_team(author, team_name):
-    author_name = str(author)
-    author_disc_id = author.id
+def join_team(user_id, team_id):
+    teamObj = teams_collection.find_one({"_id": ObjectId(team_id)})
 
-    teamObj = teams_collection.find_one({"name": team_name})
-    # verify that the given team name exists
-    if teamObj is None:
-        logging.info(f"The team {team_name} does not exist.")
-        # return {"status": "team_notfound", "team_name": team_name}
-        return TeamJoinResponse(status="team_notfound", team_name=team_name)
-
-    # check if author is verified
-    authorObj = collection.find_one({"discord_id": author_disc_id})
-    if authorObj is not None:
-        print("check")
-        # check if the author is invited
-        if not author_disc_id in teamObj['invitation_ids']:
-            logging.info(f"The user {author_name} has not been invited to {team_name}.")
-            # return {"status": "no_invitation", "user_name": author_name}
-            return TeamJoinResponse(status="no_invitation", user_name=author_name)
-        # if he is invited he has to be verified, thus we can invite him.    
-        else:
-            assert (authorObj['verified'])
-            print("test")
-            logging.info(f"The user {author_name} has joined {team_name}.")
-            teams_collection.update_one({"name": team_name},
-                                        {"$pull": {"invitation_ids": author_disc_id}})
-            teams_collection.update_one({"name": team_name},
-                                        {"$push": {"member_ids": author_disc_id}})
-            # return {"status": "success", "team_name": team_name}
-            return TeamJoinResponse(status="success", team_name=team_name)
-    else:
-        logging.info(f"The user {author_name} has to be verified before interacting with teams.")
-        # return {"status": "not_verified", "team_name": team_name}
-        return TeamJoinResponse(status="not_verified", team_name=team_name)
+    teams_collection.update_one({"_id": ObjectId(team_id)},
+                                {"$pull": {"invitation_ids": user_id}})
+    teams_collection.update_one({"_id": ObjectId(team_id)},
+                                {"$push": {"member_ids": user_id}})
+    # return {"status": "success", "team_name": team_name}
+    return teamObj
 
 
 def leave_team(author_id, team_id):
@@ -416,14 +415,12 @@ def getUsersByIDs(user_ids):
         return {"status": "success", "userObjects": userObjects}
 
 def get_all_teams():
-    teamObj = teams_collection.find()
+    teamObjs = teams_collection.find()
     # verify that the given team name exists
     teams = []
-    for team in teamObj:
+    for team in teamObjs:
         teams.append(team)
-    if not teams:
-        return TeamListResponse(status="no_team")
-    return TeamListResponse(status="success", teams=teams)
+    return teams
 
 def isPlayerInScrim(user_id, match_id):
     matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
