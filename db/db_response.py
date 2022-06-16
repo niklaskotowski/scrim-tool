@@ -82,14 +82,12 @@ class RankedInfoResponse(DBResponse):
 @dataclass
 class CreateTeamResponse(DBResponse):
     status: str
-    team_name: str = None
-    disc_name: str = None
-    owner: str = None
+    teamObj: type
     msg: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.status == "created":
-            self.msg = f"Your League team '{self.team_name}' has been created."
+            self.msg = f"Your League team '{self.teamObj['name']}' has been created."
         elif self.status == "not_verified":
             self.msg = f"You have to link your league account before creating a team '!link <SummonerName>'."
         elif self.status == "exists":

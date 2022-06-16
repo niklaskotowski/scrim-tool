@@ -31,7 +31,6 @@ class TeamCommands(interactions.Extension):
     )
     async def team_overview(self, ctx):
         user_id = int(ctx.author._json['user']['id'])
-        print(user_id)
         if (not db.has_Team(user_id)):
             main_TeamBT = interactions.Button(
                 style=interactions.ButtonStyle.SECONDARY,
@@ -51,9 +50,9 @@ class TeamCommands(interactions.Extension):
         )
 
         row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT]) 
-        await ctx.send("Team Commands:", components=row, ephemeral=True)
+        await ctx.send("Team Commands:", components=row, ephemeral=False)
 
-    ####Create Team CMD####
+    #Create Team 
     @interactions.extension_component("create_t")
     async def create_team(self, ctx):
         teamNameInput = interactions.TextInput(
@@ -72,16 +71,18 @@ class TeamCommands(interactions.Extension):
 
     @interactions.extension_modal("db_create_team")
     async def db_create_team(self, ctx, response: str):
+        user_id = int(ctx.author._json['user']['id'])
         db_response = db.create_team(ctx.author, response)
-        logging.info(f"Team Create Response: {db_response}")
-        await ctx.author.send(db_response.discord_msg())
+        embed = db.get_Team_Embed(db_response['_id'])
+        embed, row = db.get_Team_Embed_Buttons(db_response['_id'], user_id)
+        await ctx.send(embeds=[embed], components=row, ephemeral=False)
 
-    ####Show all Teams CMD####
+    #Show all Teams
     @interactions.extension_component("show_teams")
     async def show_teams(self, ctx):
         db_response = db.get_all_teams()
         logging.info(f"Team List Response: {db_response}")
-        await ctx.author.send(db_response.discord_msg())   
+        await ctx.send(db_response.discord_msg(), ephemeral=False)   
 
     # ####Show specified Team CMD####
     # @interactions.extension_component("show_t")
@@ -109,21 +110,30 @@ class TeamCommands(interactions.Extension):
     #     logging.info(f"Team Show Response: {db_response}")
     #     await ctx.author.send(db_response.discord_msg())
 
-    ####SHOW MY_TEAM --- OF ANY TEAM####
+    #show the team of the current user
     @interactions.extension_component("show_myTeam")
     async def show_myTeam(self, ctx):
         # embed showing the current team
+        db_response = db.getTeamByOwnerID(int(ctx.author._json['user']['id']))
+        teamInfo = db_response['team']
+        member_ids = [x for x in teamInfo['member_ids']]
+        db_response = db.getUsersByIDs(member_ids)
+        user_Objects = db_response['userObjects']
+        member_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in user_Objects]
+        member_string = "".join(member_list)
+        if(member_string == ""):
+            member_string = "Currently empty"
         playerField = interactions.EmbedField(
             name="Member: ",
-            value="[Max](https://euw.op.gg/summoners/euw/Secr3t)\nMoritz\nMartin\nOl\nRalf",
+            value=member_string,
             inline=True,
         )
         statisticsField = interactions.EmbedField(
             name="Statistics: ",
-            value='Wins: 2, Defeats: 0',
+            value='Wins: 6, Defeats: 9',
             inline=True,
         )
-        embed=interactions.Embed(title=" ", color=2, description="Team Hub (Fish of the Sea)", fields=[playerField, statisticsField])
+        embed=interactions.Embed(title=" ", color=2, description="Team Hub (" + teamInfo['name'] + ")", fields=[playerField, statisticsField])
         user_id = int(ctx.author._json['user']['id'])
 
         invite_MemberBT = interactions.Button(
@@ -152,7 +162,7 @@ class TeamCommands(interactions.Extension):
         row = interactions.ActionRow(components = buttons) 
         await ctx.send(embeds=[embed], components=row, ephemeral=True)
 
-    ####Invite User in Team CMD####    
+    #Invite User
     @interactions.extension_component("invite_User")
     async def invite_User(self, ctx):
         userOptions = []
@@ -176,6 +186,7 @@ class TeamCommands(interactions.Extension):
         else:
             await ctx.send("Currently all users are either invited or already have a team.", ephemeral=True)
 
+    #Db functions
     @interactions.extension_component("db_invite_Player")
     async def db_invite_Player(self, ctx, response: int):
         author_id = int(ctx.author._json['user']['id'])
@@ -184,52 +195,36 @@ class TeamCommands(interactions.Extension):
         # require author_id, invitee_id, team_name
         db_response = db.invite_user(author_id, team_id, invitee_id)
         logging.info(f"Team Invite Response: {db_response}")
-        await ctx.author.send(db_response.discord_msg())
+        await ctx.send(db_response.discord_msg(), ephemeral=True)
 
-    ####Leave Team CMD####    
+    #Leave Team    
     @interactions.extension_component("leave_Team")
     async def leave_team(self, ctx):
-        author_id = int(ctx.author._json['user']['id'])
-        team = db.getTeamByMemberID(author_id)
+        user_id = int(ctx.author._json['user']['id'])
+        team = db.getTeamByMemberID(user_id)
         if(team['status'] != "no_team"):
-            db_response = db.leave_team(author_id, team["team"]["_id"])
-            await ctx.author.send(db_response.discord_msg())
+            db_response = db.leave_team(user_id, team["team"]["_id"])
+            embed, row = db.get_Team_Embed_Buttons(team["team"]["_id"], user_id)
+            await ctx.send(embeds=[embed], components=row, ephemeral=False)
         else:
-            await ctx.author.send("You are currently not part of a team.")
+            await ctx.send("You are currently not part of a team.", ephemeral=True)
 
 
-    ####Delete Team CMD####    
+    #Delete Team
     @interactions.extension_component("delete_Team")
     async def delete_team(self, ctx):
         author_id = int(ctx.author._json['user']['id'])
         team_id = db.getTeamByOwnerID(author_id)['team']['_id']
         db_response = db.remove_team(author_id, team_id)
-        await ctx.author.send(db_response.discord_msg())
+        await ctx.send(db_response.discord_msg(), ephemeral=True)
             
-    # @commands.command(name="team_invite",
-    #                   usage="<TeamName> <PlayerName>")
-    # async def team_invite(self, ctx, arg1, user: discord.Member = None):
-    #     db_response = db.invite_user(ctx.author, arg1, user)
-    #     logging.info(f"Team Invite Response: {db_response}")
-    #     await ctx.author.send(db_response.discord_msg())
+
         
     # @commands.command(name="team_join",
     #                   usage="<TeamName>")
     # async def team_join(self, ctx, arg1):
     #     db_response = db.join_team(ctx.author, arg1)
     #     logging.info(f"Team Join Response: {db_response}")
-    #     await ctx.author.send(db_response.discord_msg())
-
-    # @commands.command(name="team_leave")
-    # async def team_leave(self, ctx, arg1):
-    #     db_response = db.leave_team(ctx.author, arg1)
-    #     logging.info(f"Team Leave Response: {db_response}")
-    #     await ctx.author.send(db_response.discord_msg())
-
-    # @commands.command(name="team_delete")
-    # async def team_delete(self, ctx, arg1):
-    #     db_response = db.remove_team(ctx.author, arg1)
-    #     logging.info(f"Team Delete Response: {db_response}")
     #     await ctx.author.send(db_response.discord_msg())
 
 

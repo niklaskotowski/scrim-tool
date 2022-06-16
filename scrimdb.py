@@ -9,6 +9,7 @@ from bson.objectid import ObjectId
 # client = MongoClient(os.getenv('MONGO_URI'))
 from db.db_response import *
 import db.lolapi_data as lol
+import interactions
 
 
 load_dotenv()
@@ -168,8 +169,78 @@ def get_all_Users():
 def get_all_validUsers(team_id):    
     team = teams_collection.find_one({'_id': team_id})
     cursor = collection.find({"$and": [{'discord_id': {"$nin": team['invitation_ids']}},
-                                       {'discord_id': {"$ne": team['owner_id']}}]})
+                                       {'discord_id': {"$ne": team['owner_id']}},
+                                       {'discord_id': {"$nin": team['member_ids']}}]})
     return cursor
+
+def getTeamByTeamID(team_id):
+    return teams_collection.find_one({'_id': team_id})
+
+def get_Team_Embed(team_id):
+    teamObj = getTeamByTeamID(team_id)
+    member_ids = [x for x in teamObj['member_ids']]
+    db_response = getUsersByIDs(member_ids)
+    user_Objects = db_response['userObjects']
+    member_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in user_Objects]
+    member_string = "".join(member_list)
+    playerField = interactions.EmbedField(
+        name="Member: ",
+        value=member_string,
+        inline=True,
+    )
+    statisticsField = interactions.EmbedField(
+        name="Statistics: ",
+        value='Wins: 6, Defeats: 9',
+        inline=True,
+    )
+    embed=interactions.Embed(title=" ", color=2, description="Team Hub (" +  teamObj['name'] + ")", fields=[playerField, statisticsField])
+    return embed
+
+def get_Team_Embed_Buttons(team_id, user_id):
+    teamObj = getTeamByTeamID(team_id)
+    member_ids = [x for x in teamObj['member_ids']]
+    db_response = getUsersByIDs(member_ids)
+    user_Objects = db_response['userObjects']
+    member_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in user_Objects]
+    member_string = "".join(member_list)
+    if member_string == "":
+        member_string = "Empty"
+    playerField = interactions.EmbedField(
+        name="Member: ",
+        value=member_string,
+        inline=True,
+    )
+    statisticsField = interactions.EmbedField(
+        name="Statistics: ",
+        value='Wins: 6, Defeats: 9',
+        inline=True,
+    )
+    embed=interactions.Embed(title=" ", color=3, description="Team Hub (" +  teamObj['name'] + ")", fields=[playerField, statisticsField])    
+    invite_MemberBT = interactions.Button(
+        style=interactions.ButtonStyle.SECONDARY,
+        label="Invite User",
+        custom_id="invite_User"
+    )
+    leave_TeamBT = interactions.Button(
+        style=interactions.ButtonStyle.SECONDARY,
+        label="Leave",
+        custom_id="leave_Team"
+    )
+    deleteTeamBT = interactions.Button(
+        style=interactions.ButtonStyle.SECONDARY,
+        label="Delete",
+        custom_id="delete_Team"
+    )
+    if (is_Owner(user_id) and isPartofATeam(user_id)):
+        buttons = [invite_MemberBT, leave_TeamBT, deleteTeamBT]
+    elif(is_Owner(user_id) and not isPartofATeam(user_id)):
+        buttons = [invite_MemberBT, deleteTeamBT]
+    elif(isPartofATeam(user_id) and not is_Owner(user_id)):
+        buttons = [leave_TeamBT]
+    else:
+        buttons = []
+    row = interactions.ActionRow(components = buttons) 
+    return embed, row
 
 def create_team(author, team_name):
     disc_name = author._json['user']['username']
@@ -180,11 +251,11 @@ def create_team(author, team_name):
 
     if team is not None:
         logging.info(f"A team with this name already exists '{team_name}'")
-        return CreateTeamResponse(status="exists", team_name=team_name)
-
+        return 
     if owner is None or not owner['verified']:
         logging.info(f"The team owner has to link a league account !link <SummonerName>.")
-        return CreateTeamResponse(status="not_verified", disc_name=disc_name)
+        return 
+        
     # New Team
     logging.info(f"Creating New Team {team_name}")
     new_team = {"name": team_name,
@@ -192,7 +263,8 @@ def create_team(author, team_name):
                 "member_ids": [disc_id],
                 "invitation_ids": []}
     teams_collection.insert_one(new_team)
-    return CreateTeamResponse(status="created", team_name=team_name, owner=owner)
+    teamObj = getTeamByOwnerID(disc_id)
+    return teamObj['team']
 
 
 def invite_user(author_id, team_id, invitee_id):
@@ -269,18 +341,15 @@ def leave_team(author_id, team_id):
     teamObj = teams_collection.find_one({"_id": team_id})
     # verify that the given team name exists
     if teamObj is None:
-        logging.info(f"The team {team_id} does not exist.")
-        return TeamLeaveResponse(status="team_notfound", team_id=team_id)
-
+        logging.info(f"The team {team_id} does not exist.") 
     # check that the user is part of the team
     if not author_id in teamObj['member_ids']:
-        logging.info(f"The user {author_id} is not part of {team_id}.")
-        return TeamLeaveResponse(status="no_member", user_id=author_id)
+        logging.info(f"The user {author_id} is not part of {team_id}.")    
     else:
         logging.info(f"{author_id} has left {team_id}.")
         teams_collection.update_one({"_id": team_id},
                                     {"$pull": {"member_ids": author_id}})
-        return TeamLeaveResponse(status="success", team_id=team_id)
+    return teamObj
 
 
 def remove_team(author_id, team_id):
@@ -335,6 +404,16 @@ def getTeamByMemberID(user_id):
         return {"status": "success", "team": teamObj}
     else:
         return {"status": "no_team"}
+
+def getUsersByIDs(user_ids):
+    userObjects = []
+    for user_id in user_ids:
+        userObj = collection.find_one({"discord_id": user_id})
+        userObjects.append(userObj)
+    if (userObjects is []):
+        return {"status": "no_users_found"}
+    else:
+        return {"status": "success", "userObjects": userObjects}
 
 def get_all_teams():
     teamObj = teams_collection.find()
