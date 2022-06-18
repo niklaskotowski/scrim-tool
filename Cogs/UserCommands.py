@@ -10,10 +10,6 @@ class UserCommands(commands.Cog, name="UserCommands"):
         self.bot = bot
         self.index = 0
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        logging.info("User Commands loaded")
-
     @commands.command(name="unlink")
     async def unlink(self, ctx):
         dels = db.unlink_command(ctx.author)
@@ -23,7 +19,6 @@ class UserCommands(commands.Cog, name="UserCommands"):
                       usage="<LeagueName>")
     async def link(self, ctx, arg):
         db_response = db.link_command(arg, ctx.author)
-        logging.info(f"Link Call Response: {db_response}")
         await ctx.author.send(db_response.discord_msg())
 
     @link.error
@@ -34,7 +29,6 @@ class UserCommands(commands.Cog, name="UserCommands"):
     @commands.command(name="rankedinfo")
     async def rankedinfo(self, ctx):
         db_response = db.rankedinfo_command(ctx.author)
-        logging.info(f"RankedInfo Call Response: {db_response}")
         await ctx.author.send(db_response.discord_msg())
 
 

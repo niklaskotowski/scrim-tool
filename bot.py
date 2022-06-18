@@ -7,11 +7,14 @@ from dotenv import load_dotenv
 import asyncio
 import sys
 import logging
+logging.basicConfig(filename='System.log', level=logging.DEBUG)
+
 import interactions
 
 from Cogs.TeamCommands import TeamCommands
 
 load_dotenv()
+
 TOKEN = os.getenv('DISCORD_TOKEN')
 help_command = commands.DefaultHelpCommand(
     no_category = 'Commands'
@@ -30,31 +33,13 @@ desc = "Manage your League of Legends Scrims with this application."
 # !user_info
 bot = interactions.Client(token=TOKEN)
 
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(levelname)s] - %(message)s',
-                    datefmt='%m/%d/%Y %H:%M:%S',
-                    handlers=[
-                        logging.FileHandler("scrimdb.log"),
-                        logging.StreamHandler()
-                    ])
 
-
-@bot.event
-async def on_ready():
-    print(f' has connected to Discord!')
 
 
 bot.load('Cogs.MainUtility')
 bot.load('Cogs.TeamCommands')
 
 bot.start() 
-
-# if __name__ == '__main__':
-#     for include in includes:
-#         try:
-#             bot.load_extension(include)
-#         except Exception as e:
-#             print(e )
-#             print(f'Failed to load extension {include}', file=sys.stderr)
 
 
 

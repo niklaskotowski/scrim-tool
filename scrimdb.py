@@ -35,8 +35,6 @@ def link_command(summoner_name, author):
         if not result['verified']:
             check_verification(author)
         if result['verified']:
-            logging.info(f"{disc_name} already has verified Summoner '{result['summoner_name']}'")
-            # return {"status": "verified", "summoner_name": result['summoner_name']}
             return LinkResponse(status="verified", summoner_name=result['summoner_name'])
         # return {"status": "created", "verify": result['verification_id'], "summoner_name": result['summoner_name']}
         return LinkResponse(status="created", verification_id=result['verification_id'],
@@ -55,8 +53,6 @@ def link_command(summoner_name, author):
         # return {"status": "invalid"}
         return LinkResponse(status="invalid")
 
-    # New User
-    logging.info(f"Creating New User {disc_name}")
     ver_id = str(uuid.uuid4())
 
     new_user = {"discord_name": disc_name,
@@ -99,7 +95,6 @@ def check_verification(author, region="euw1"):
     r = requests.get(URL)
 
     if r.status_code != 200:
-        logging.warning(f"Failed to verify for Summoner '{result['summoner_name']}' - {r.status_code}")
         return False
 
     verification = str(r.json())
@@ -109,10 +104,7 @@ def check_verification(author, region="euw1"):
                  "verification_id": verification}
         update = {"$set": {"verified": True}}
         collection.update_one(query, update)
-        logging.info(f"Summoner '{result['summoner_name']}' is now verified for {result['discord_name']}")
         return True
-    else:
-        logging.warning("Verification is complete but IDs do not match")
 
 
 def is_verified(author):
@@ -130,16 +122,12 @@ def is_verified(author):
 
 def get_summoner_id(summoner_name, region="euw1"):
     URL = f"https://{region}.api.riotgames.com/lol/summoner/v4/summoners/by-name/{summoner_name}?api_key={os.getenv('RIOT_API')}"
-    logging.info(f"RIOT API CALL - {URL}")
     r = requests.get(URL)
 
     if r.status_code == 404:
-        logging.warning(f"Summoner {summoner_name} does not exist")
         return False
 
     if r.status_code != 200:
-        logging.error(f"Failed to fetch summoner id for {summoner_name} - {r.status_code}")
-        logging.error(r.json())
         return "INVALID"
 
     return str(r.json()['id'])
@@ -151,7 +139,6 @@ def is_Owner(user_id):
 def has_Team(user_id):
     result = teams_collection.find_one({"$or": [{"member_ids": {"$in": [user_id]}},
                                                {"owner_id": user_id}]})
-    print(result)
     return result != None
 
 def isPartofATeam(user_id):
@@ -275,14 +262,11 @@ def create_team(author, team_name):
     owner = collection.find_one({"discord_id": disc_id})
 
     if team is not None:
-        logging.info(f"A team with this name already exists '{team_name}'")
         return 
     if owner is None or not owner['verified']:
-        logging.info(f"The team owner has to link a league account !link <SummonerName>.")
         return 
         
     # New Team
-    logging.info(f"Creating New Team {team_name}")
     new_team = {"name": team_name,
                 "owner_id": disc_id,
                 "member_ids": [disc_id],
@@ -299,24 +283,16 @@ def invite_user(author_id, team_id, invitee_id):
         return InviteUserResponse(status="already_invited")
     # verify that the given team name exists
     if teamObj is None:
-        logging.info(f"The team does not exist.")
         return InviteUserResponse(status="team_notfound")
 
     # check if the invitee is a verified user
     inviteeObj = collection.find_one({"discord_id": invitee_id})
     
     if not inviteeObj['verified']:
-        logging.info(f"The user {invitee_id} is not verified.")
         return InviteUserResponse(status="invitee_not_verified", user_name=inviteeObj['discord_name'])
 
     if not teamObj['owner_id'] == author_id:
-        logging.info(f"Only the team owner is authorized to invite players.")
-        # return {"status": "notowner"}
         return InviteUserResponse(status="notowner")
-
-
-    # New Invitee
-    logging.info(f"Creating an invitation to team {team_id}.")
 
     teams_collection.update_one({"_id": ObjectId(team_id)},
                                 {"$push": {
@@ -340,12 +316,11 @@ def leave_team(author_id, team_id):
     teamObj = teams_collection.find_one({"_id": team_id})
     # verify that the given team name exists
     if teamObj is None:
-        logging.info(f"The team {team_id} does not exist.") 
+        return False
     # check that the user is part of the team
     if not author_id in teamObj['member_ids']:
-        logging.info(f"The user {author_id} is not part of {team_id}.")    
+        return False
     else:
-        logging.info(f"{author_id} has left {team_id}.")
         teams_collection.update_one({"_id": team_id},
                                     {"$pull": {"member_ids": author_id}})
     return teamObj
@@ -355,15 +330,12 @@ def remove_team(author_id, team_id):
     teamObj = teams_collection.find_one({"_id": team_id})
     # verify that the given team name exists
     if teamObj is None:
-        logging.info(f"The team {team_id} does not exist.")
         return TeamDeleteResponse(status="team_notfound", team_id=team_id)
 
     # check that the author is the team owner
     if not author_id == teamObj['owner_id']:
-        logging.info(f"Only the team owner is allowed to delete the team.")
         return TeamDeleteResponse(status="not_owner", user_id=author_id)
     else:
-        logging.info(f"{author_id} has deleted '{team_id}'.")
         teams_collection.delete_one({"_id": team_id})
         return TeamDeleteResponse(status="success", team_id=team_id)
 
@@ -372,7 +344,6 @@ def get_team(author, team_name):
     teamObj = teams_collection.find_one({"name": team_name})
     # verify that the given team name exists
     if teamObj is None:
-        logging.info(f"The team {team_name} does not exist.")
         # return {"status": "team_notfound", "team_name": team_name}
         return TeamShowResponse(status="team_notfound", team_name=team_name)
 
@@ -380,7 +351,6 @@ def get_team(author, team_name):
     players = []
     for player_id in teamObj['member_ids']:
         players.append(collection.find_one({"discord_id": player_id}))
-    logging.info(f"Team info for {team_name} has been successfully requested.")
     # return {"status": "success", "teamObj": teamObj, "members": players}
     return TeamShowResponse(status="success", team_name = teamObj['name'], teamObj=teamObj, members=players)
 
@@ -442,11 +412,9 @@ def create_match(author, team_name, datetime):
     # a match entry in the collection is created and the first time is set to "team_name"
     teamObj = teams_collection.find_one({"name": team_name})
     if teamObj is None:
-        logging.info(f"The team {team_name} does not exist.")
         return {"status": "team_notfound", "team_name": team_name}
 
     if teamObj['owner_id'] != disc_id:
-        logging.info(f"Only the team owner can schedule a match.")
         return {"status": "not_owner", "team_name": team_name}
 
     new_match = {"datetime": datetime,
@@ -484,7 +452,6 @@ def get_all_matches(author):
 def get_match(author, team_name):
     teamObj = teams_collection.find({"name": team_name})
     if teamObj is None:
-        logging.info(f"The team {team_name} does not exist.")
         return {"status": "team_notfound", "team_name": team_name}
     else:
         matches = match_collection.find({"$or" :[ {"team1": team_name}, {"team2": team_name} ] }) 
@@ -504,7 +471,6 @@ def get_match(author, team_name):
                 userObj = collection.find_one({"discord_id": p_id})
                 players.append(userObj['summoner_name'])
             players_2.append(players)
-        logging.info(f"Scheduled matches for {team_name} are returned.")
         return {"status": "success", "matches": matches_, "players_t1": players_1, "players_t2": players_2}
 
 #return matchObj
@@ -533,24 +499,19 @@ def join_match_asTeam(user_id, match_id):
     matchDict = ""
     # check that the team has not already entered the scrim    
     if (matchObj['team1'] != "" and matchObj['team2'] != ""):
-        logging.info(f"Scrim is already full.")
         return {"status": "full"}
     teamObj = teams_collection.find_one({"owner_id": user_id})
     if teamObj is None:
-        logging.info(f"{user_id} requested to join a scrim without owning a team.")
         return {"status": "not_owner"}
     if (teamObj['name'] == matchObj['team1'] or teamObj['name'] == matchObj['team2']):
-        logging.info(f"{teamObj['name']} is already part of the scrim.")
         return {"status": "already_part_of_it"}
     if (matchObj['team1'] == ""):
         match_collection.update_one({"_id": ObjectId(match_id)},
                                     {"$set": {"team1": teamObj['name']}}) 
-        logging.info(f"{teamObj['name']} joined the selected scrim at {matchObj['datetime']}.")
         matchDict  = get_match_byID(match_id) | {"status": "success"}
     if (matchObj['team2'] == ""):
         match_collection.update_one({"_id": ObjectId(match_id)},
                                     {"$set": {"team2": teamObj['name']}}) 
-        logging.info(f"{teamObj['name']} joined the selected scrim at {matchObj['datetime']}.")
         matchDict  = get_match_byID(match_id) | {"status": "success"}
     return matchDict
 
@@ -569,7 +530,6 @@ def join_match_asPlayer(user_id, match_id):
     p_2 = []
     if matchObj is not None:        
         if (user_id in matchObj['roster1'] or user_id in matchObj['roster2']):
-            logging.info(f"{user_id} is already part of the scrim.")
             return {'status': 'already_part_of_it'}
     else:
         return {'status': 'match_notfound'}
@@ -577,21 +537,18 @@ def join_match_asPlayer(user_id, match_id):
     team1_Obj = teams_collection.find_one({"name": matchDict['match']['team1'], "member_ids": {"$in": [user_id]}})
     team2_Obj = teams_collection.find_one({"name": matchDict['match']['team2'], "member_ids": {"$in": [user_id]}})
     if (team1_Obj is not None):
-        logging.info(f"{user_id} joined scrim with id: {match_id}.")
         match_collection.update_one({"_id": ObjectId(match_id)},
                                     {"$push": {"roster1": user_id}}) 
         matchDict = {"status": "success"} | matchDict
         matchDict['players_t1'][0].append(authorObj['summoner_name'])
         return matchDict
     elif (team2_Obj is not None):
-        logging.info(f"{user_id} joined scrim with id: {match_id}.")
         match_collection.update_one({"_id": ObjectId(match_id)},
                                     {"$push": {"roster2": user_id}}) 
         matchDict = {"status": "success"} | matchDict       
         matchDict['players_t2'].append(authorObj['summoner_name'])
         return matchDict
     else:
-        logging.info(f"{user_id} requested to join a scrim without being part of one of the teams.")
         return {"status": "no_member"}
 
 def leave_match_asTeam(user_id, match_id):
@@ -601,14 +558,12 @@ def leave_match_asTeam(user_id, match_id):
     teamObj = teams_collection.find_one({"owner_id": user_id})
     if (teamObj is not None and matchObj is not None):
         if (matchObj['team1'] == teamObj['name']):
-            logging.info(f"The team {teamObj['name']} left the scrim.")
             match_collection.update_one({"_id": ObjectId(match_id)},
                                         {"$set": {"team1": ""}})
             match = get_match_byID(match_id)
             matchDict = {"status": "success"} | match
             return matchDict
         if (matchObj['team2'] == teamObj['name']):
-            logging.info(f"The team {teamObj['name']} left the scrim.")
             match_collection.update_one({"_id": ObjectId(match_id)},
                                         {"$set": {"team2": ""}})
             match = get_match_byID(match_id)
@@ -625,13 +580,11 @@ def leave_match_asPlayer(user_id, match_id):
     # verify that the author is not already part of one of the rosters
     if matchObj is not None:        
         if (user_id in matchObj['roster1']):
-            logging.info(f"{user_id} has left a scrim.")
             match_collection.update_one({"_id": ObjectId(match_id)},
                             {"$pull": {"roster1": user_id}})  
             match = get_match_byID(match_id)
             return {'status': 'success'} | match
         if (user_id in matchObj['roster2']):
-            logging.info(f"{user_id} has left a scrim.")
             match_collection.update_one({"_id": ObjectId(match_id)},
                             {"$pull": {"roster2": user_id}})  
             match = get_match_byID(match_id)
