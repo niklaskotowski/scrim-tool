@@ -191,7 +191,7 @@ class TeamCommands(interactions.Extension):
         db_response = db.invite_user(author_id, team_id, invitee_id)
         embed, row = db.get_Team_Embed_Buttons(team_id, author_id)
         await ctx.defer(edit_origin=True)
-        await ctx.edit("", components=row)
+        await ctx.edit(embeds=[embed], components=row)
 
     #Leave Team    
     @interactions.extension_component("leave_Team")
@@ -200,7 +200,7 @@ class TeamCommands(interactions.Extension):
         team = db.getTeamByMemberID(user_id)
         if(team['status'] != "no_team"):
             db.leave_team(user_id, team["team"]["_id"])
-            embed, row = db.get_Team_Embed_Buttons(team["team"]["_id"], user_id)
+            embed, row = db.get_Team_Embed_Buttons(team["team"]["_id"], user_id)            
             await ctx.defer(edit_origin=True)
             await ctx.edit(embeds=[embed], components=row)
         else:

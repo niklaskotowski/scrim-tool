@@ -219,12 +219,20 @@ def get_Team_Embed(team_id):
 def get_Team_Embed_Buttons(team_id, user_id):
     teamObj = getTeamByTeamID(team_id)
     member_ids = [x for x in teamObj['member_ids']]
-    db_response = getUsersByIDs(member_ids)
+    invitee_ids = [x for x in teamObj['invitation_ids']]
+    db_response = getUsersByIDs(member_ids)    
     user_Objects = db_response['userObjects']
+    db_response = getUsersByIDs(invitee_ids)
+    invitee_Objects = db_response['userObjects']
     member_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in user_Objects]
+    invitee_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in invitee_Objects]
     member_string = "".join(member_list)
+    invitee_string = "".join(invitee_list)
     if member_string == "":
         member_string = "Empty"
+    if invitee_string == "":
+        invitee_string = "No invitations"
+        
     playerField = interactions.EmbedField(
         name="Member: ",
         value=member_string,
@@ -235,7 +243,12 @@ def get_Team_Embed_Buttons(team_id, user_id):
         value='Wins: 6, Defeats: 9',
         inline=True,
     )
-    embed=interactions.Embed(title=" ", color=3, description="Team Hub (" +  teamObj['name'] + ")", fields=[playerField, statisticsField])    
+    inviteesField = interactions.EmbedField(
+        name="Invitees: ",
+        value=invitee_string,
+        inline=True,
+    )
+    embed=interactions.Embed(title=" ", color=3, description="Team Hub (" +  teamObj['name'] + ")", fields=[playerField, inviteesField, statisticsField])    
     invite_MemberBT = interactions.Button(
         style=interactions.ButtonStyle.SECONDARY,
         label="Invite User",
