@@ -37,10 +37,12 @@ class TeamCommands(interactions.Extension):
                 label="Team Hub",
                 custom_id="show_myTeam"
             )
+        existTeams = len(db.get_all_teams()) == 0
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
-            custom_id="show_teams"
+            custom_id="show_teams",
+            disabled=existTeams
         )
         row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT]) 
         await ctx.send("Scrim Tool:", components=row, ephemeral=True)
@@ -60,14 +62,20 @@ class TeamCommands(interactions.Extension):
                 label="Team Hub",
                 custom_id="show_myTeam"
             )
+        existTeams = len(db.get_all_teams()) >= 1
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
-            custom_id="show_teams"
+            custom_id="show_teams",
+            disabled=existTeams
         )
         row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT])
         await ctx.defer(edit_origin=True)
-        await ctx.edit("Team Commands:", components=row)
+        await ctx.edit("Team Commands:", embeds = [], components=row)
+
+    @interactions.extension_component("home_button")
+    async def home(self, ctx):
+        await self.home_button(ctx)
 
     #Create Team 
     @interactions.extension_component("create_t")
@@ -83,11 +91,6 @@ class TeamCommands(interactions.Extension):
             title="Team Name",
             custom_id="db_create_team",
             components=[teamNameInput],
-        )
-        show_TeamsBT = interactions.Button(
-            style=interactions.ButtonStyle.SECONDARY,
-            label="Show Teams",
-            custom_id="show_teams"
         )
         action_stack.append(ctx)
         await ctx.popup(modalTeamInput)
@@ -128,11 +131,8 @@ class TeamCommands(interactions.Extension):
                 placeholder="List of Teams",
                 custom_id="showTeamWithID",
             )   
-            #,await ctx.defer(edit_origin=True)
-            await ctx.send("", components=[SMenu])
-        else:
-            #await ctx.defer(edit_origin=True) 
-            await ctx.send("Currently there are no teams.")
+            await ctx.defer(edit_origin=True)
+            await ctx.edit("", embeds=[], components=[SMenu])
 
     #show the team with the given id
     @interactions.extension_component("showTeamWithID")
@@ -244,10 +244,12 @@ class TeamCommands(interactions.Extension):
                 label="Team Hub",
                 custom_id="show_myTeam"
             )
+        existTeams = len(db.get_all_teams()) > 0
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
-            custom_id="show_teams"
+            custom_id="show_teams",
+            disabled=existTeams
         )
         row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT])
         await ctx.defer(edit_origin=True)

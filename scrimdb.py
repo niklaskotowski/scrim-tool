@@ -232,7 +232,7 @@ def get_Team_Embed_Buttons(team_id, user_id):
         member_string = "Empty"
     if invitee_string == "":
         invitee_string = "No invitations"
-        
+
     playerField = interactions.EmbedField(
         name="Member: ",
         value=member_string,
@@ -269,6 +269,11 @@ def get_Team_Embed_Buttons(team_id, user_id):
         label="Delete",
         custom_id="delete_Team"
     )
+    homeTeamBT = interactions.Button(
+        style=interactions.ButtonStyle.SUCCESS,
+        label="Home",
+        custom_id="home_button"
+    )
     if (is_Owner(user_id) and isPartofTeamID(user_id, teamObj['_id'])):        
         if(hasPosibleInvitee(user_id, teamObj['_id'])):
             buttons = [invite_MemberBT, leave_TeamBT, deleteTeamBT]
@@ -285,6 +290,7 @@ def get_Team_Embed_Buttons(team_id, user_id):
         buttons = [join_TeamBT]
     else:
         buttons = []
+    buttons.append(homeTeamBT)
     row = interactions.ActionRow(components = buttons) 
     return embed, row
 
