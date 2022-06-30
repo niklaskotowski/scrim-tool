@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import asyncio
 import sys
 import logging
-logging.basicConfig(filename='System.log', level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 import interactions
 

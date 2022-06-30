@@ -160,6 +160,21 @@ def isInvitedIntoTeamID(user_id, team_id):
     else:
         return False
 
+def hasPosibleInvitee(user_id, team_id):
+    teamObj = teams_collection.find_one({"_id": ObjectId(team_id)})
+    teams = teams_collection.find()
+    member_ids = [x['member_ids'] for x in teams]
+    print(member_ids)
+    x = [x for x in member_ids]
+    print(x)
+    all_member_ids = sum(x, [])
+    userObjs = collection.find()
+    print(member_ids)
+    for usr in userObjs:
+        if not usr['discord_id'] in teamObj['invitation_ids'] and not usr['discord_id'] in all_member_ids and usr['discord_id'] != user_id:
+            return True
+    return False
+
 def get_UserByName(user_name):
     result = collection.fine_one({})
 
@@ -241,10 +256,16 @@ def get_Team_Embed_Buttons(team_id, user_id):
         label="Delete",
         custom_id="delete_Team"
     )
-    if (is_Owner(user_id) and isPartofTeamID(user_id, teamObj['_id'])):
-        buttons = [invite_MemberBT, leave_TeamBT, deleteTeamBT]
+    if (is_Owner(user_id) and isPartofTeamID(user_id, teamObj['_id'])):        
+        if(hasPosibleInvitee(user_id, teamObj['_id'])):
+            buttons = [invite_MemberBT, leave_TeamBT, deleteTeamBT]
+        else:
+            buttons = [leave_TeamBT, deleteTeamBT]
     elif(is_Owner(user_id) and not isPartofTeamID(user_id, teamObj['_id'])):
-        buttons = [invite_MemberBT, join_TeamBT, deleteTeamBT]
+        if(hasPosibleInvitee(user_id, teamObj['_id'])):
+            buttons = [invite_MemberBT, join_TeamBT, deleteTeamBT]
+        else:
+            buttons = [join_TeamBT, deleteTeamBT]
     elif(isPartofTeamID(user_id, teamObj['_id']) and not is_Owner(user_id)):
         buttons = [leave_TeamBT]
     elif(not isPartofTeamID(user_id, teamObj['_id']) and isInvitedIntoTeamID(user_id, teamObj['_id'])):
