@@ -190,6 +190,9 @@ def get_all_validUsers(team_id):
                                        {'discord_id': {"$nin": team['member_ids']}}]})
     return cursor
 
+def getMatchbyMatchID(match_id):
+    return match_collection.find_one({'_id': match_id})
+
 def getTeamByTeamID(team_id):
     return teams_collection.find_one({'_id': team_id})
 
@@ -293,6 +296,11 @@ def get_Team_Embed_Buttons(team_id, user_id):
     buttons.append(homeTeamBT)
     row = interactions.ActionRow(components = buttons) 
     return embed, row
+
+        
+def get_Match_Embed_Buttons(match_id, user_id):
+    #a team member not owning the team can only see the match up
+    print("TODO") 
 
 def create_team(author, team_name):
     disc_name = author._json['user']['username']
@@ -446,19 +454,14 @@ def isTeamInScrim(team_name, match_id):
     else:
         return False
 
-def create_match(author, team_name, datetime):
-    disc_id = author.id
+def create_match(team_id, datetime):    
     # first verify that the given author owns the tean
     # a match entry in the collection is created and the first time is set to "team_name"
-    teamObj = teams_collection.find_one({"name": team_name})
+    teamObj = teams_collection.find_one({"_id": team_id})
     if teamObj is None:
-        return {"status": "team_notfound", "team_name": team_name}
-
-    if teamObj['owner_id'] != disc_id:
-        return {"status": "not_owner", "team_name": team_name}
-
+        return {"status": "team_notfound", "team_id": team_id}
     new_match = {"datetime": datetime,
-                 "team1": team_name,
+                 "team1": team_id,
                  "roster1": [],
                  "team2": None,
                  "roster2": []}
@@ -467,26 +470,13 @@ def create_match(author, team_name, datetime):
     return {"status": "created"}
 
 
-def get_all_matches(author):
-    matchObjects = match_collection.find()
-    #obtain players for each match
-    matches_ = []
-    for match in matchObjects:   
-        matches_.append(match)     
-        players = []
-        players_t1 = []
-        players_t2 = []
-        for p_id in match['roster1']:
-            userObj = collection.find_one({"discord_id": p_id})
-            players.append(userObj['summoner_name'])
-        players_t1.append(players)
-        players = []
-        for p_id in match['roster2']:
-            userObj = collection.find_one({"discord_id": p_id})
-            players.append(userObj['summoner_name'])
-        players_t2.append(players)
-
-    return {"status" : "success", "matches" : matches_, "players_t1": players_t1, "players_t2": players_t2}
+def get_all_teams():
+    matchObjs = match_collection.find()
+    # verify that the given team name exists
+    matches = []
+    for match in matchObjs:
+        matches.append(match)
+    return matches
 
 
 def get_match(author, team_name):

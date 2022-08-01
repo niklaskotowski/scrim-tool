@@ -6,6 +6,8 @@ import scrimdb as db
 import logging
 import interactions
 from bson.objectid import ObjectId
+import datetime
+
 
 exit = 	"\u274C"
 check = "\u2705"
@@ -38,13 +40,28 @@ class TeamCommands(interactions.Extension):
                 custom_id="show_myTeam"
             )
         existTeams = len(db.get_all_teams()) == 0
+        #TODO for existMatches
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
             custom_id="show_teams",
             disabled=existTeams
         )
-        row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT]) 
+        show_MatchesBT = interactions.Button(
+            style=interactions.ButtonStyle.SECONDARY,
+            label="Show Matches",
+            custom_id="show_matches",
+            disabled=False
+        )
+        if (db.is_Owner(user_id)):
+            create_matchBT = interactions.Button(
+                style=interactions.ButtonStyle.SECONDARY,
+                label="Create Match",
+                custom_id="selectDayForMatch"
+            )        
+            row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT, create_matchBT, show_MatchesBT]) 
+        else:
+            row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT, show_MatchesBT]) 
         await ctx.send("Scrim Tool:", components=row, ephemeral=True)
 
     #Home Button
@@ -69,7 +86,21 @@ class TeamCommands(interactions.Extension):
             custom_id="show_teams",
             disabled=existTeams
         )
-        row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT])
+        show_MatchesBT = interactions.Button(
+            style=interactions.ButtonStyle.SECONDARY,
+            label="Show Matches",
+            custom_id="show_matches",
+            disabled=False
+        )
+        if (db.is_Owner(user_id)):
+            create_matchBT = interactions.Button(
+                style=interactions.ButtonStyle.SECONDARY,
+                label="Create Match",
+                custom_id="selectDayForMatch"
+            )        
+            row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT, create_matchBT, show_MatchesBT]) 
+        else:
+            row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT, show_MatchesBT]) 
         await ctx.defer(edit_origin=True)
         await ctx.edit("Team Commands:", embeds = [], components=row)
 
@@ -94,6 +125,63 @@ class TeamCommands(interactions.Extension):
         )
         action_stack.append(ctx)
         await ctx.popup(modalTeamInput)
+
+    #Create Match
+    @interactions.extension_component("selectDayForMatch")
+    async def selectDayForMatch(self, ctx):
+        dt_list = []
+        dateList = [(datetime.datetime.now() + datetime.timedelta(days=x)).date() for x in [0, 1, 2, 3, 4, 5, 6]]        
+        for date in dateList:
+            Soption = interactions.SelectOption(
+                label=date.strftime("%m/%d/%Y"),
+                value=date.strftime("%m/%d/%Y"),
+                description=" ",
+            )
+            dt_list.append(Soption)        
+        SMenu = interactions.SelectMenu(
+            options=dt_list,
+            placeholder="Day",
+            custom_id="selectHourForMatch",
+        )        
+        await ctx.defer(edit_origin=True)
+        await ctx.edit(" ", components=[SMenu])            
+
+    #Create Match
+    @interactions.extension_component("selectHourForMatch")
+    async def selectHourForMatch(self, ctx, response : str):
+        t_list = []
+        timeList = ["17:00", "18:00", "19:00", "20:00", "21:00", "22:00"]        
+        for time in timeList:
+            Soption = interactions.SelectOption(
+                label=time,
+                value=response[0] + "_" + time,
+                description=" ",
+            )
+            t_list.append(Soption)        
+        SMenu = interactions.SelectMenu(
+            options=t_list,
+            placeholder="Hour",
+            custom_id="db_create_match",
+        )        
+        await ctx.defer(edit_origin=True)
+        await ctx.edit(" ", components=[SMenu])            
+
+    @interactions.extension_component("db_create_match")
+    async def db_create_match(self, ctx, response: str):
+        date_split = response[0].split("_")
+        year = date_split[0].split("/")[2]
+        month= date_split[0].split("/")[1]
+        day = date_split[0].split("/")[0]
+        time_split = date_split[1].split(":")
+        hour = time_split[0]
+        minutes = time_split[1]
+        dateTimeObj = datetime.datetime(int(year), int(month), int(day), int(hour), int(minutes), 0)
+        author_id = int(ctx.author._json['user']['id'])
+        team_obj = db.getTeamByOwnerID(author_id)['team']
+        db.create_match(team_obj['_id'], dateTimeObj)
+        embed, row = db.get_Team_Embed_Buttons(team_obj['_id'], author_id)
+        await ctx.defer(edit_origin=True)
+        await ctx.edit(embeds=[embed], components=row)
 
     @interactions.extension_modal("db_create_team")
     async def db_create_team(self, ctx, response: str):
@@ -134,6 +222,48 @@ class TeamCommands(interactions.Extension):
             await ctx.defer(edit_origin=True)
             await ctx.edit("", embeds=[], components=[SMenu])
 
+    #Show all Matches
+    @interactions.extension_component("show_matches")
+    async def show_matches(self, ctx):
+        matchObjects = db.get_all_matches()
+        user_id = int(ctx.author._json['user']['id'])
+        embeds = []
+        row = []
+        TeamOptionList = []
+        for m in matchObjects:
+            invited = False
+            if user_id in m['roster1'] or user_id in m['roster2']:
+                invited = True
+            partofLabel = str("Entered") if invited else str(" ")
+            team1 = str("Open Spot") if (m['team1'] == None) else m['team1']
+            team2 = str("Open Spot") if (m['team2'] == None) else m['team2']
+            label = team1 + str("vs.") + team2
+            Soption = interactions.SelectOption(
+                label=label,
+                value=str(m['_id']),
+                description=partofLabel,
+            )
+            TeamOptionList.append(Soption)
+        if(TeamOptionList):
+            SMenu = interactions.SelectMenu(
+                options=TeamOptionList,
+                placeholder="List of Scrims",
+                custom_id="showMatchWithID",
+            )   
+            await ctx.defer(edit_origin=True)
+            await ctx.edit("", embeds=[], components=[SMenu])
+
+    #show the team with the given id
+    @interactions.extension_component("showTeamWithID")
+    async def showMatchWithID(self, ctx, response: str):
+        # embed showing the current team
+        match_id = str(response[0])
+        user_id = int(ctx.author._json['user']['id'])
+        team_Obj = db.getMatchbyMatchID(match_id)        
+        embed, row = db.get_Team_Embed_Buttons(team_Obj["_id"], user_id)
+        await ctx.defer(edit_origin=True)
+        await ctx.edit(embeds=[embed], components=row)
+
     #show the team with the given id
     @interactions.extension_component("showTeamWithID")
     async def showTeamWithID(self, ctx, response: str):
@@ -141,7 +271,7 @@ class TeamCommands(interactions.Extension):
         team_id = str(response[0])
         user_id = int(ctx.author._json['user']['id'])
         team_Obj = db.getTeamByTeamID(ObjectId(team_id))        
-        embed, row = db.get_Team_Embed_Buttons(team_Obj["_id"], user_id)
+        embed, row = db.get_Match_Embed_Buttons(team_Obj["_id"], user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -251,7 +381,21 @@ class TeamCommands(interactions.Extension):
             custom_id="show_teams",
             disabled=existTeams
         )
-        row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT])
+        show_MatchesBT = interactions.Button(
+            style=interactions.ButtonStyle.SECONDARY,
+            label="Show Matches",
+            custom_id="show_matches",
+            disabled=False
+        )
+        if (db.is_Owner(user_id)):
+            create_matchBT = interactions.Button(
+                style=interactions.ButtonStyle.SECONDARY,
+                label="Create Match",
+                custom_id="selectDayForMatch"
+            )        
+            row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT, create_matchBT, show_MatchesBT]) 
+        else:
+            row = interactions.ActionRow(components = [main_TeamBT, show_TeamsBT, show_MatchesBT]) 
         await ctx.defer(edit_origin=True)
         await ctx.edit("Team Commands:", embeds=[], components=row)
 
