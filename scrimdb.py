@@ -300,8 +300,67 @@ def get_Team_Embed_Buttons(team_id, user_id):
         
 def get_Match_Embed_Buttons(match_id, user_id):
     #a team member not owning the team can only see the match up
-    print("TODO") 
-
+    matchObj = getMatchbyMatchID(match_id)
+    team1_id = matchObj['team1']
+    team2_id = matchObj['team2']
+    team1 = getTeamByTeamID(team1_id)
+    team2 = getTeamByTeamID(team2_id)  
+    roster1 = getUsersByIDs(matchObj['roster1'])['userObjects']
+    roster2 = getUsersByIDs(matchObj['roster2'])['userObjects']
+    roster1_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in roster1]
+    roster2_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in roster2]    
+    roster1_string = "".join(roster1_list)
+    roster2_string = "".join(roster2_list)
+    team_1_name = team1['name'] if team1 else "Open"
+    team_2_name = team2['name'] if team2 else "Open"
+    if roster1_string == "":
+        roster1_string = "Empty"
+    if roster2_string == "":
+        roster2_string = "Empty"
+    roster1Field = interactions.EmbedField(
+        name="Member: ",
+        value=roster1_string,
+        inline=False,
+    )
+    overviewField = interactions.EmbedField(
+        name="Scrim Match - " + str(team_1_name) + " vs. " + str(team_2_name),
+        value=str("___"),
+        inline=True,
+    )
+    roster2Field = interactions.EmbedField(
+        name="Member: ",
+        value=roster2_string,
+        inline=False,
+    )
+    embed=interactions.Embed(title=" ", color=3, description="Scrim Match (" + str(team_1_name) + " - " + str(team_2_name) + ")", fields=[overviewField, roster1Field, roster2Field])    
+    leave_MatchBT = interactions.Button(
+        style=interactions.ButtonStyle.SECONDARY,
+        label="Leave",
+        custom_id="leave_Match"
+    )
+    join_MatchBT = interactions.Button(
+        style=interactions.ButtonStyle.SECONDARY,
+        label="Join",
+        custom_id="join_Match"
+    )
+    cancel_MatchBT = interactions.Button(
+        style=interactions.ButtonStyle.PRIMARY,
+        label="Cancel",
+        custom_id="cancel_Match"
+    )
+    #we can only join a match if there are two teams ready - this rule is requiered for consistent use
+    both_teams = matchObj['team1'] and matchObj['team2'] 
+    if (is_Owner(user_id) and (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id)) and both_teams):        
+        buttons= [join_MatchBT, leave_MatchBT, cancel_MatchBT]
+    elif(is_Owner(user_id) and not (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id))):
+        buttons= [cancel_MatchBT]
+    elif(isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id) and both_teams):
+        buttons = [join_MatchBT, leave_MatchBT]    
+    else:
+        buttons = []
+    row = interactions.ActionRow(components = buttons) 
+    return embed, row
+    
 def create_team(author, team_name):
     disc_name = author._json['user']['username']
     disc_id = int(author._json['user']['id'])
@@ -470,7 +529,7 @@ def create_match(team_id, datetime):
     return {"status": "created"}
 
 
-def get_all_teams():
+def get_all_matches():
     matchObjs = match_collection.find()
     # verify that the given team name exists
     matches = []

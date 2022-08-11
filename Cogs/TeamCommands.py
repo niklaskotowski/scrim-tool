@@ -235,8 +235,8 @@ class TeamCommands(interactions.Extension):
             if user_id in m['roster1'] or user_id in m['roster2']:
                 invited = True
             partofLabel = str("Entered") if invited else str(" ")
-            team1 = str("Open Spot") if (m['team1'] == None) else m['team1']
-            team2 = str("Open Spot") if (m['team2'] == None) else m['team2']
+            team1 = str("Open Spot") if (m['team1'] == None) else db.getTeamByTeamID(m['team1'])['name']
+            team2 = str("Open Spot") if (m['team2'] == None) else db.getTeamByTeamID(m['team2'])['name']
             label = team1 + str("vs.") + team2
             Soption = interactions.SelectOption(
                 label=label,
@@ -254,13 +254,13 @@ class TeamCommands(interactions.Extension):
             await ctx.edit("", embeds=[], components=[SMenu])
 
     #show the team with the given id
-    @interactions.extension_component("showTeamWithID")
+    @interactions.extension_component("showMatchWithID")
     async def showMatchWithID(self, ctx, response: str):
         # embed showing the current team
         match_id = str(response[0])
         user_id = int(ctx.author._json['user']['id'])
-        team_Obj = db.getMatchbyMatchID(match_id)        
-        embed, row = db.get_Team_Embed_Buttons(team_Obj["_id"], user_id)
+        team_Obj = db.getMatchbyMatchID(ObjectId(match_id))        
+        embed, row = db.get_Match_Embed_Buttons(team_Obj['_id'], user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -271,7 +271,7 @@ class TeamCommands(interactions.Extension):
         team_id = str(response[0])
         user_id = int(ctx.author._json['user']['id'])
         team_Obj = db.getTeamByTeamID(ObjectId(team_id))        
-        embed, row = db.get_Match_Embed_Buttons(team_Obj["_id"], user_id)
+        embed, row = db.get_Team_Embed_Buttons(team_Obj["_id"], user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -353,14 +353,33 @@ class TeamCommands(interactions.Extension):
             await ctx.defer(edit_origin=True)
             await ctx.edit("Something went wrong.")
 
+    @interactions.extension_component("join_Match")
+    async def join_match(self, ctx):
+        #we can only reach this part of code, if the given match has two teams that have joined
+        #what if one team leaves and rejoins? should the set of possible users stay stored for this specific combination? 
+        #currently not considered
+        user_id = int(ctx.author._json['user']['id'])
+        teamNameInfo = ctx._json['message']['embeds'][0]['description']
+        teamNames = teamNameInfo.split("(")[1]
+        team1Name = teamNames.split("-")[0]
+        #cut out last element ")"
+        team2Name = teamNames.split("-")[1][0:-2]
+        #find scrim match with the two given team names
+        team1_id = db.getTeamByTeamName(team1Name)['_id']
+        team2_id = db.getTeamByTeamNAme(team2Name)['_id']
+        match_id = db.getMatchByTeams(team1_id, team2_id)['_id']
+        result = db.join_match_asPlayer(user_id, match_id)
+        #what is displayed the same as before so we want to get the embed as bevore in joni team
+        embed, row = db.get_Match_Embed_Buttons(match_id, user_id)
+        await ctx.defer(edit_origin=True)
+        await ctx.edit(embeds=[embed], components=row)
+
     #Delete Team
     @interactions.extension_component("delete_Team")
     async def delete_team(self, ctx):
         author_id = int(ctx.author._json['user']['id'])
         team_id = db.getTeamByOwnerID(author_id)['team']['_id']
         db_response = db.remove_team(author_id, team_id)
-        
-        #await ctx.edit(embeds=[], components=[])
         user_id = int(ctx.author._json['user']['id'])
         if (not db.has_Team(user_id)):
             main_TeamBT = interactions.Button(
