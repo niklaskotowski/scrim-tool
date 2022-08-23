@@ -648,18 +648,16 @@ def leave_match_asTeam(user_id, match_id):
     # check that the team has already entered the scrim    
     teamObj = teams_collection.find_one({"owner_id": user_id})
     if (teamObj is not None and matchObj is not None):
-        if (matchObj['team1'] == teamObj['name']):
+        if (matchObj['team1'] == teamObj['_id']):
             match_collection.update_one({"_id": ObjectId(match_id)},
                                         {"$set": {"team1": ""}})
             match = get_match_byID(match_id)
-            matchDict = {"status": "success"} | match
-            return matchDict
-        if (matchObj['team2'] == teamObj['name']):
+            return match
+        if (matchObj['team2'] == teamObj['_id']):
             match_collection.update_one({"_id": ObjectId(match_id)},
                                         {"$set": {"team2": ""}})
             match = get_match_byID(match_id)
-            matchDict = {"status": "success"} | match
-            return matchDict
+            return match
     return {"status": "fail"}
 
 def leave_match_asPlayer(user_id, match_id):
@@ -683,4 +681,3 @@ def leave_match_asPlayer(user_id, match_id):
         return {'status': 'fail'}
     else:
         return {'status': 'fail'}
-    
