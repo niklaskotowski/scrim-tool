@@ -337,6 +337,29 @@ class TeamCommands(interactions.Extension):
             await ctx.defer(edit_origin=True)
             await ctx.edit("You are currently not part of a team.")
 
+    #Leave Match  
+    @interactions.extension_component("leave_Match")
+    async def leave_match(self, ctx):
+        user_id = int(ctx.author._json['user']['id'])
+        teamNameInfo = ctx._json['message']['embeds'][0]['description']
+        teamNames = teamNameInfo.split("(")[1]
+        team1Name = teamNames.split("-")[0][0:-1]
+        #cut out last element ")"
+        team2Name = teamNames.split("-")[1][1:-1]
+        #find scrim match with the two given team names
+        team1_id = db.getTeamByTeamName(team1Name)
+        team2_id = db.getTeamByTeamName(team2Name)
+        if(team1_id != None):
+            team1_id = team1_id['_id']
+        if(team2_id != None):
+            team2_id = team2_id['_id']
+
+        match_id = db.getMatchbyTeamIDs(team1_id, team2_id)['_id']
+        db.leave_match_asPlayer(user_id, match_id)
+        embed, row = db.get_Match_Embed_Buttons(match_id, user_id)
+        await ctx.defer(edit_origin=True)
+        await ctx.edit(embeds=[embed], components=row)
+
     #Join Team
     @interactions.extension_component("join_Team")
     async def join_team(self, ctx):
@@ -361,18 +384,24 @@ class TeamCommands(interactions.Extension):
         user_id = int(ctx.author._json['user']['id'])
         teamNameInfo = ctx._json['message']['embeds'][0]['description']
         teamNames = teamNameInfo.split("(")[1]
-        team1Name = teamNames.split("-")[0]
+        team1Name = teamNames.split("-")[0][0:-1]
         #cut out last element ")"
-        team2Name = teamNames.split("-")[1][0:-2]
+        team2Name = teamNames.split("-")[1][1:-1]
         #find scrim match with the two given team names
-        team1_id = db.getTeamByTeamName(team1Name)['_id']
-        team2_id = db.getTeamByTeamNAme(team2Name)['_id']
-        match_id = db.getMatchByTeams(team1_id, team2_id)['_id']
+        team1_id = db.getTeamByTeamName(team1Name)
+        team2_id = db.getTeamByTeamName(team2Name)
+        if(team1_id != None):
+            team1_id = team1_id['_id']
+        if(team2_id != None):
+            team2_id = team2_id['_id']
+
+        match_id = db.getMatchbyTeamIDs(team1_id, team2_id)['_id']
         result = db.join_match_asPlayer(user_id, match_id)
         #what is displayed the same as before so we want to get the embed as bevore in joni team
         embed, row = db.get_Match_Embed_Buttons(match_id, user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
+
 
     #Delete Team
     @interactions.extension_component("delete_Team")

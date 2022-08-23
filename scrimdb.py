@@ -193,6 +193,10 @@ def get_all_validUsers(team_id):
 def getMatchbyMatchID(match_id):
     return match_collection.find_one({'_id': match_id})
 
+def getMatchbyTeamIDs(team_id1, team_id2):
+    return match_collection.find_one({"$or": [{'$and' : [{'team1' : team_id1}, {'team2': team_id2}]},
+                                              {'$and' : [{'team2' : team_id1}, {'team1': team_id2}]}]}                  )
+
 def getTeamByTeamID(team_id):
     return teams_collection.find_one({'_id': team_id})
 
@@ -325,7 +329,7 @@ def get_Match_Embed_Buttons(match_id, user_id):
     overviewField = interactions.EmbedField(
         name="Scrim Match - " + str(team_1_name) + " vs. " + str(team_2_name),
         value=str("___"),
-        inline=True,
+        inline=True,    
     )
     roster2Field = interactions.EmbedField(
         name="Member: ",
@@ -623,18 +627,16 @@ def join_match_asPlayer(user_id, match_id):
     else:
         return {'status': 'match_notfound'}
     matchDict = get_match_byID(match_id)
-    team1_Obj = teams_collection.find_one({"name": matchDict['match']['team1'], "member_ids": {"$in": [user_id]}})
-    team2_Obj = teams_collection.find_one({"name": matchDict['match']['team2'], "member_ids": {"$in": [user_id]}})
+    team1_Obj = teams_collection.find_one({"_id": matchDict['match']['team1'], "member_ids": {"$in": [user_id]}})
+    team2_Obj = teams_collection.find_one({"_id": matchDict['match']['team2'], "member_ids": {"$in": [user_id]}})
     if (team1_Obj is not None):
         match_collection.update_one({"_id": ObjectId(match_id)},
                                     {"$push": {"roster1": user_id}}) 
-        matchDict = {"status": "success"} | matchDict
         matchDict['players_t1'][0].append(authorObj['summoner_name'])
         return matchDict
     elif (team2_Obj is not None):
         match_collection.update_one({"_id": ObjectId(match_id)},
-                                    {"$push": {"roster2": user_id}}) 
-        matchDict = {"status": "success"} | matchDict       
+                                    {"$push": {"roster2": user_id}})  
         matchDict['players_t2'].append(authorObj['summoner_name'])
         return matchDict
     else:
@@ -672,12 +674,12 @@ def leave_match_asPlayer(user_id, match_id):
             match_collection.update_one({"_id": ObjectId(match_id)},
                             {"$pull": {"roster1": user_id}})  
             match = get_match_byID(match_id)
-            return {'status': 'success'} | match
+            return match
         if (user_id in matchObj['roster2']):
             match_collection.update_one({"_id": ObjectId(match_id)},
                             {"$pull": {"roster2": user_id}})  
             match = get_match_byID(match_id)
-            return {'status': 'success'} | match
+            return match
         return {'status': 'fail'}
     else:
         return {'status': 'fail'}
