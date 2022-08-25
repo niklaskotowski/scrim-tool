@@ -339,29 +339,40 @@ def get_Match_Embed_Buttons(match_id, user_id):
     embed=interactions.Embed(title=" ", color=3, description="Scrim Match (" + str(team_1_name) + " - " + str(team_2_name) + ")", fields=[overviewField, roster1Field, roster2Field])    
     leave_MatchBT = interactions.Button(
         style=interactions.ButtonStyle.SECONDARY,
-        label="Leave",
+        label="Leave as Player",
         custom_id="leave_Match"
     )
     join_MatchBT = interactions.Button(
         style=interactions.ButtonStyle.SECONDARY,
-        label="Join",
+        label="Join as Player",
         custom_id="join_Match"
     )
-    cancel_MatchBT = interactions.Button(
+    leave_MatchTeam_BT = interactions.Button(
         style=interactions.ButtonStyle.PRIMARY,
-        label="Cancel",
-        custom_id="cancel_Match"
+        label="Leave as Team",
+        custom_id="leave_Match_asTeam"
+    )
+    join_MatchTeam_BT = interactions.Button(
+        style=interactions.ButtonStyle.PRIMARY,
+        label="Join as Team",
+        custom_id="join_Match_asTeam"
+    )
+    homeTeamBT = interactions.Button(
+        style=interactions.ButtonStyle.SUCCESS,
+        label="Home",
+        custom_id="home_button"
     )
     #we can only join a match if there are two teams ready - this rule is requiered for consistent use
-    both_teams = matchObj['team1'] and matchObj['team2'] 
-    if (is_Owner(user_id) and (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id)) and both_teams):        
-        buttons= [join_MatchBT, leave_MatchBT, cancel_MatchBT]
-    elif(is_Owner(user_id) and not (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id))):
-        buttons= [cancel_MatchBT]
-    elif(isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id) and both_teams):
-        buttons = [join_MatchBT, leave_MatchBT]    
+    both_teams = matchObj['team1'] != None and matchObj['team2'] != None
+    if ((isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id)) and both_teams):        
+        buttons= [join_MatchBT, leave_MatchBT]
+    elif(is_Owner(user_id) and (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id))):
+        buttons = [join_MatchBT, leave_MatchBT, leave_MatchTeam_BT]
+    elif(is_Owner(user_id) and not (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id)) and not both_teams):
+        buttons = [join_MatchBT, leave_MatchBT, join_MatchTeam_BT] 
     else:
         buttons = []
+    buttons.append(homeTeamBT)
     row = interactions.ActionRow(components = buttons) 
     return embed, row
     
@@ -530,7 +541,8 @@ def create_match(team_id, datetime):
                  "roster2": []}
 
     match_collection.insert_one(new_match)
-    return {"status": "created"}
+    match_id = getMatchbyTeamIDs(team_id, None)
+    return match_id
 
 
 def get_all_matches():

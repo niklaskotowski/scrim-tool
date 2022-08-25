@@ -80,6 +80,7 @@ class TeamCommands(interactions.Extension):
                 custom_id="show_myTeam"
             )
         existTeams = len(db.get_all_teams()) >= 1
+        existMatches = len(db.get_all_matches()) >= 1
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
@@ -90,7 +91,7 @@ class TeamCommands(interactions.Extension):
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Matches",
             custom_id="show_matches",
-            disabled=False
+            disabled=existMatches
         )
         if (db.is_Owner(user_id)):
             create_matchBT = interactions.Button(
@@ -170,16 +171,16 @@ class TeamCommands(interactions.Extension):
     async def db_create_match(self, ctx, response: str):
         date_split = response[0].split("_")
         year = date_split[0].split("/")[2]
-        month= date_split[0].split("/")[1]
-        day = date_split[0].split("/")[0]
+        month= date_split[0].split("/")[0]
+        day = date_split[0].split("/")[1]
         time_split = date_split[1].split(":")
         hour = time_split[0]
         minutes = time_split[1]
         dateTimeObj = datetime.datetime(int(year), int(month), int(day), int(hour), int(minutes), 0)
         author_id = int(ctx.author._json['user']['id'])
         team_obj = db.getTeamByOwnerID(author_id)['team']
-        db.create_match(team_obj['_id'], dateTimeObj)
-        embed, row = db.get_Team_Embed_Buttons(team_obj['_id'], author_id)
+        match_id = db.create_match(team_obj['_id'], dateTimeObj)
+        embed, row = db.get_Match_Embed_Buttons(match_id, author_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -402,9 +403,33 @@ class TeamCommands(interactions.Extension):
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
-    #Cancel Match
-    @interactions.extension_component("cancel_Match")
-    async def cancel_match(self, ctx):
+    #Join Match As Team
+    @interactions.extension_component("join_Match_asTeam")
+    async def join_match_asTeam(self, ctx):
+        user_id = int(ctx.author._json['user']['id'])
+        teamNameInfo = ctx._json['message']['embeds'][0]['description']
+        teamNames = teamNameInfo.split("(")[1]
+        team1Name = teamNames.split("-")[0][0:-1]
+        #cut out last element ")"
+        team2Name = teamNames.split("-")[1][1:-1]
+        #find scrim match with the two given team names
+        team1_id = db.getTeamByTeamName(team1Name)
+        team2_id = db.getTeamByTeamName(team2Name)
+        if(team1_id != None):
+            team1_id = team1_id['_id']
+        if(team2_id != None):
+            team2_id = team2_id['_id']
+
+        match_id = db.getMatchbyTeamIDs(team1_id, team2_id)['_id']
+        db.join_match_asTeam(user_id, match_id)
+        #what is displayed the same as before so we want to get the embed as bevore in joni team
+        embed, row = db.get_Match_Embed_Buttons(match_id, user_id)
+        await ctx.defer(edit_origin=True)
+        await ctx.edit(embeds=[embed], components=row)
+
+    #Leave Match As Team
+    @interactions.extension_component("leave_Match_asTeam")
+    async def leave_match_asTeam(self, ctx):
         user_id = int(ctx.author._json['user']['id'])
         teamNameInfo = ctx._json['message']['embeds'][0]['description']
         teamNames = teamNameInfo.split("(")[1]
