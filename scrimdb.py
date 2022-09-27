@@ -206,8 +206,7 @@ def getTeamByTeamName(team_name):
 def get_Team_Embed(team_id):
     teamObj = getTeamByTeamID(team_id)
     member_ids = [x for x in teamObj['member_ids']]
-    db_response = getUsersByIDs(member_ids)
-    user_Objects = db_response['userObjects']
+    user_Objects = getUsersByIDs(member_ids)
     member_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in user_Objects]
     member_string = "".join(member_list)
     playerField = interactions.EmbedField(
@@ -226,11 +225,9 @@ def get_Team_Embed(team_id):
 def get_Team_Embed_Buttons(team_id, user_id):
     teamObj = getTeamByTeamID(team_id)
     member_ids = [x for x in teamObj['member_ids']]
-    invitee_ids = [x for x in teamObj['invitation_ids']]
-    db_response = getUsersByIDs(member_ids)    
-    user_Objects = db_response['userObjects']
-    db_response = getUsersByIDs(invitee_ids)
-    invitee_Objects = db_response['userObjects']
+    invitee_ids = [x for x in teamObj['invitation_ids']] 
+    user_Objects = getUsersByIDs(member_ids)  
+    invitee_Objects = getUsersByIDs(invitee_ids)
     member_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in user_Objects]
     invitee_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in invitee_Objects]
     member_string = "".join(member_list)
@@ -302,41 +299,42 @@ def get_Team_Embed_Buttons(team_id, user_id):
     return embed, row
 
         
-def get_Match_Embed_Buttons(match_id, user_id):
-    #a team member not owning the team can only see the match up
-    matchObj = getMatchbyMatchID(match_id)
+def get_Match_Embed_Buttons(matchObj, user_id):
+    #a team member not owning the team can only see the match up    
+    roster1 = []
+    roster2 = []
+    team_1_name = "No team"
+    team_2_name = "No team"    
+    assert(matchObj != None)
     team1_id = matchObj['team1']
     team2_id = matchObj['team2']
     team1 = getTeamByTeamID(team1_id)
     team2 = getTeamByTeamID(team2_id)  
-    roster1 = getUsersByIDs(matchObj['roster1'])['userObjects']
-    roster2 = getUsersByIDs(matchObj['roster2'])['userObjects']
+    team_1_name = team1['name'] if team1 else "Open"
+    team_2_name = team2['name'] if team2 else "Open"
+    roster1 = getUsersByIDs(matchObj['roster1'])
+    roster2 = getUsersByIDs(matchObj['roster2'])
     roster1_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in roster1]
     roster2_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in roster2]    
     roster1_string = "".join(roster1_list)
     roster2_string = "".join(roster2_list)
-    team_1_name = team1['name'] if team1 else "Open"
-    team_2_name = team2['name'] if team2 else "Open"
+
+    
     if roster1_string == "":
         roster1_string = "Empty"
     if roster2_string == "":
         roster2_string = "Empty"
     roster1Field = interactions.EmbedField(
-        name="Member: ",
+        name="Members (" + str(team_1_name).capitalize() +  ")",
         value=roster1_string,
         inline=False,
     )
-    overviewField = interactions.EmbedField(
-        name="Scrim Match - " + str(team_1_name) + " vs. " + str(team_2_name),
-        value=str("___"),
-        inline=True,    
-    )
     roster2Field = interactions.EmbedField(
-        name="Member: ",
+        name="Members (" + str(team_2_name).capitalize() +  ")",
         value=roster2_string,
         inline=False,
     )
-    embed=interactions.Embed(title=" ", color=3, description="Scrim Match (" + str(team_1_name) + " - " + str(team_2_name) + ")", fields=[overviewField, roster1Field, roster2Field])    
+    embed=interactions.Embed(title=str(team_1_name).capitalize() + " vs. " + str(team_2_name).capitalize(), color=3, description="Am " + matchObj['datetime'].strftime("%m/%d/%Y") + " um " + matchObj['datetime'].strftime("%H:%M:%S"), fields=[roster1Field, roster2Field])    
     leave_MatchBT = interactions.Button(
         style=interactions.ButtonStyle.SECONDARY,
         label="Leave as Player",
@@ -362,8 +360,10 @@ def get_Match_Embed_Buttons(match_id, user_id):
         label="Home",
         custom_id="home_button"
     )
-    #we can only join a match if there are two teams ready - this rule is requiered for consistent use
-    both_teams = matchObj['team1'] != None and matchObj['team2'] != None
+    #we can only join a match if there are two teams ready - this rule is required for a consistent usage
+    both_teams = False
+    if (matchObj):
+        both_teams = matchObj['team1'] != None and matchObj['team2'] != None
     if ((isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id)) and both_teams):        
         buttons= [join_MatchBT, leave_MatchBT]
     elif(is_Owner(user_id) and (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id))):
@@ -502,9 +502,9 @@ def getUsersByIDs(user_ids):
         userObj = collection.find_one({"discord_id": user_id})
         userObjects.append(userObj)
     if (userObjects is []):
-        return {"status": "no_users_found"}
+        return []
     else:
-        return {"status": "success", "userObjects": userObjects}
+        return userObjects
 
 def get_all_teams():
     teamObjs = teams_collection.find()
@@ -532,8 +532,7 @@ def create_match(team_id, datetime):
     # first verify that the given author owns the tean
     # a match entry in the collection is created and the first time is set to "team_name"
     teamObj = teams_collection.find_one({"_id": team_id})
-    if teamObj is None:
-        return {"status": "team_notfound", "team_id": team_id}
+    assert(teamObj)    
     new_match = {"datetime": datetime,
                  "team1": team_id,
                  "roster1": [],
@@ -541,8 +540,8 @@ def create_match(team_id, datetime):
                  "roster2": []}
 
     match_collection.insert_one(new_match)
-    match_id = getMatchbyTeamIDs(team_id, None)
-    return match_id
+    matchObj = getMatchbyTeamIDs(team_id, None)
+    return matchObj
 
 
 def get_all_matches():

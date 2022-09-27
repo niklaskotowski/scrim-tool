@@ -179,8 +179,8 @@ class TeamCommands(interactions.Extension):
         dateTimeObj = datetime.datetime(int(year), int(month), int(day), int(hour), int(minutes), 0)
         author_id = int(ctx.author._json['user']['id'])
         team_obj = db.getTeamByOwnerID(author_id)['team']
-        match_id = db.create_match(team_obj['_id'], dateTimeObj)
-        embed, row = db.get_Match_Embed_Buttons(match_id, author_id)
+        matchObj = db.create_match(team_obj['_id'], dateTimeObj)
+        embed, row = db.get_Match_Embed_Buttons(matchObj, author_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -260,8 +260,8 @@ class TeamCommands(interactions.Extension):
         # embed showing the current team
         match_id = str(response[0])
         user_id = int(ctx.author._json['user']['id'])
-        team_Obj = db.getMatchbyMatchID(ObjectId(match_id))        
-        embed, row = db.get_Match_Embed_Buttons(team_Obj['_id'], user_id)
+        matchObj = db.getMatchbyMatchID(ObjectId(match_id))        
+        embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -355,9 +355,9 @@ class TeamCommands(interactions.Extension):
         if(team2_id != None):
             team2_id = team2_id['_id']
 
-        match_id = db.getMatchbyTeamIDs(team1_id, team2_id)['_id']
-        db.leave_match_asPlayer(user_id, match_id)
-        embed, row = db.get_Match_Embed_Buttons(match_id, user_id)
+        matchObj = db.getMatchbyTeamIDs(team1_id, team2_id)
+        db.leave_match_asPlayer(user_id, matchObj['_id'])
+        embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -396,10 +396,10 @@ class TeamCommands(interactions.Extension):
         if(team2_id != None):
             team2_id = team2_id['_id']
 
-        match_id = db.getMatchbyTeamIDs(team1_id, team2_id)['_id']
-        result = db.join_match_asPlayer(user_id, match_id)
+        matchObj = db.getMatchbyTeamIDs(team1_id, team2_id)
+        db.join_match_asPlayer(user_id, matchObj['_id'])
         #what is displayed the same as before so we want to get the embed as bevore in joni team
-        embed, row = db.get_Match_Embed_Buttons(match_id, user_id)
+        embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -420,10 +420,10 @@ class TeamCommands(interactions.Extension):
         if(team2_id != None):
             team2_id = team2_id['_id']
 
-        match_id = db.getMatchbyTeamIDs(team1_id, team2_id)['_id']
-        db.join_match_asTeam(user_id, match_id)
+        matchObj = db.getMatchbyTeamIDs(team1_id, team2_id)
+        db.join_match_asTeam(user_id, matchObj['_id'])
         #what is displayed the same as before so we want to get the embed as bevore in joni team
-        embed, row = db.get_Match_Embed_Buttons(match_id, user_id)
+        embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
@@ -444,10 +444,10 @@ class TeamCommands(interactions.Extension):
         if(team2_id != None):
             team2_id = team2_id['_id']
 
-        match_id = db.getMatchbyTeamIDs(team1_id, team2_id)['_id']
-        db.leave_match_asTeam(user_id, match_id)
+        matchObj = db.getMatchbyTeamIDs(team1_id, team2_id)
+        db.leave_match_asTeam(user_id, matchObj['_id'])
         #what is displayed the same as before so we want to get the embed as bevore in joni team
-        embed, row = db.get_Match_Embed_Buttons(match_id, user_id)
+        embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
 
