@@ -236,8 +236,8 @@ class TeamCommands(interactions.Extension):
             if user_id in m['roster1'] or user_id in m['roster2']:
                 invited = True
             partofLabel = str("Entered") if invited else str(" ")
-            team1 = str("Open Spot") if (m['team1'] == None) else db.getTeamByTeamID(m['team1'])['name']
-            team2 = str("Open Spot") if (m['team2'] == None) else db.getTeamByTeamID(m['team2'])['name']
+            team1 = str("Open Spot") if (m['team1'] == None or m['team1'] == '') else db.getTeamByTeamID(m['team1'])['name']
+            team2 = str("Open Spot") if (m['team2'] == None or m['team2'] == '') else db.getTeamByTeamID(m['team2'])['name']
             label = team1 + str("vs.") + team2
             Soption = interactions.SelectOption(
                 label=label,
