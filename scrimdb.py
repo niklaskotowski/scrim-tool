@@ -195,7 +195,11 @@ def getMatchbyMatchID(match_id):
 
 def getMatchbyTeamIDs(team_id1, team_id2):
     return match_collection.find_one({"$or": [{'$and' : [{'team1' : team_id1}, {'team2': team_id2}]},
-                                              {'$and' : [{'team2' : team_id1}, {'team1': team_id2}]}]}                  )
+                                              {'$and' : [{'team2' : team_id1}, {'team1': team_id2}]}]})
+
+def getMatchByTeamIDsAndDateTime(team_id1, team_id2, datetimeObj):
+    return match_collection.find_one({"$or": [{'$and' : [{'team1' : team_id1}, {'team2': team_id2}, {'datetime': datetimeObj}]},
+                                              {'$and' : [{'team2' : team_id1}, {'team1': team_id2}, {'datetime': datetimeObj}]}]})
 
 def getTeamByTeamID(team_id):
     return teams_collection.find_one({'_id': team_id})

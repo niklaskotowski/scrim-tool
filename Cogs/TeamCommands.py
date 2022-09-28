@@ -79,8 +79,8 @@ class TeamCommands(interactions.Extension):
                 label="Team Hub",
                 custom_id="show_myTeam"
             )
-        existTeams = len(db.get_all_teams()) >= 1
-        existMatches = len(db.get_all_matches()) >= 1
+        existTeams = len(db.get_all_teams()) == 0
+        existMatches = len(db.get_all_matches()) == 0
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
@@ -238,7 +238,7 @@ class TeamCommands(interactions.Extension):
             partofLabel = str("Entered") if invited else str(" ")
             team1 = str("Open Spot") if (m['team1'] == None or m['team1'] == '') else db.getTeamByTeamID(m['team1'])['name']
             team2 = str("Open Spot") if (m['team2'] == None or m['team2'] == '') else db.getTeamByTeamID(m['team2'])['name']
-            label = team1 + str("vs.") + team2
+            label = team1 + str(" vs. ") + team2.capitalize() + " Am "+ m['datetime'].strftime("%m/%d/%Y") + " um " + m['datetime'].strftime("%H:%M:%S")
             Soption = interactions.SelectOption(
                 label=label,
                 value=str(m['_id']),
@@ -248,7 +248,7 @@ class TeamCommands(interactions.Extension):
         if(TeamOptionList):
             SMenu = interactions.SelectMenu(
                 options=TeamOptionList,
-                placeholder="List of Scrims",
+                placeholder="Matchlist",
                 custom_id="showMatchWithID",
             )   
             await ctx.defer(edit_origin=True)
@@ -431,14 +431,21 @@ class TeamCommands(interactions.Extension):
     @interactions.extension_component("leave_Match_asTeam")
     async def leave_match_asTeam(self, ctx):
         user_id = int(ctx.author._json['user']['id'])
-        teamNameInfo = ctx._json['message']['embeds'][0]['description']
-        teamNames = teamNameInfo.split("(")[1]
-        team1Name = teamNames.split("-")[0][0:-1]
-        #cut out last element ")"
-        team2Name = teamNames.split("-")[1][1:-1]
+        teamNameInfo = ctx._json['message']['embeds'][0]['title']
+        teamNames = teamNameInfo.split("vs.")
+        team1Name = teamNames[0].replace(" ", "")    
+        team2Name = teamNames[1].replace(" ", "")
+        #lower case first letter
+        team1Name = team1Name[0].lower() + team1Name[1:]
+        team2Name = team2Name[0].lower() + team2Name[1:]
         #find scrim match with the two given team names
         team1_id = db.getTeamByTeamName(team1Name)
         team2_id = db.getTeamByTeamName(team2Name)
+        #find unique match by comparing datetime
+        datetimeInfo = ctx._json['message']['embeds'][0]['description'].replace(" ", "")
+        datetimeInfo = datetimeInfo.split("Am")[1].split("um")
+        datetimeStr =' '.join(datetimeInfo)        
+        datetimeObj = datetime.datetime.strptime(datetimeStr, '%m/%d/%Y %H:%M:%S')
         if(team1_id != None):
             team1_id = team1_id['_id']
         if(team2_id != None):
