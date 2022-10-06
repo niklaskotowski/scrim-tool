@@ -10,6 +10,7 @@ from bson.objectid import ObjectId
 from db.db_response import *
 import db.lolapi_data as lol
 import interactions
+import datetime
 
 
 load_dotenv()
@@ -152,6 +153,9 @@ def isPartofTeamID(user_id, team_id):
     else:
         return False
 
+def userIsPartOfMatch(user_id, match_id):
+    matchObj = match_collection.find_one({'_id': match_id})
+    return user_id in matchObj['roster1'] or user_id in matchObj['roster2']
 
 def isInvitedIntoTeamID(user_id, team_id):
     teamObj = teams_collection.find_one({"_id": ObjectId(team_id)})
@@ -321,9 +325,7 @@ def get_Match_Embed_Buttons(matchObj, user_id):
     roster1_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in roster1]
     roster2_list = ["[" + str(x['discord_name'].split("#")[0]) + "]" + "(https://euw.op.gg/summoners/euw/" + str(x['summoner_name']) + ")\n" for x in roster2]    
     roster1_string = "".join(roster1_list)
-    roster2_string = "".join(roster2_list)
-
-    
+    roster2_string = "".join(roster2_list)    
     if roster1_string == "":
         roster1_string = "Empty"
     if roster2_string == "":
@@ -339,46 +341,94 @@ def get_Match_Embed_Buttons(matchObj, user_id):
         inline=False,
     )
     embed=interactions.Embed(title=str(team_1_name).capitalize() + " vs. " + str(team_2_name).capitalize(), color=3, description="Am " + matchObj['datetime'].strftime("%m/%d/%Y") + " um " + matchObj['datetime'].strftime("%H:%M:%S"), fields=[roster1Field, roster2Field])    
-    leave_MatchBT = interactions.Button(
+    leaveMatchAsPlayer_BT = interactions.Button(
         style=interactions.ButtonStyle.SECONDARY,
         label="Leave as Player",
-        custom_id="leave_Match"
+        custom_id="leave_Match_asPlayer"
     )
-    join_MatchBT = interactions.Button(
+    joinMatchAsPlayer_BT = interactions.Button(
         style=interactions.ButtonStyle.SECONDARY,
         label="Join as Player",
-        custom_id="join_Match"
+        custom_id="join_Match_asPlayer"
     )
-    leave_MatchTeam_BT = interactions.Button(
+    leaveMatchAsTeam_BT = interactions.Button(
         style=interactions.ButtonStyle.PRIMARY,
         label="Leave as Team",
         custom_id="leave_Match_asTeam"
     )
-    join_MatchTeam_BT = interactions.Button(
+    joinMatchAsTeam_BT = interactions.Button(
         style=interactions.ButtonStyle.PRIMARY,
         label="Join as Team",
         custom_id="join_Match_asTeam"
     )
-    homeTeamBT = interactions.Button(
+    homeBT = interactions.Button(
         style=interactions.ButtonStyle.SUCCESS,
         label="Home",
         custom_id="home_button"
     )
-    #we can only join a match if there are two teams ready - this rule is required for a consistent usage
-    both_teams = False
-    if (matchObj):
-        both_teams = matchObj['team1'] != None and matchObj['team2'] != None
-    if ((isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id)) and both_teams):        
-        buttons= [join_MatchBT, leave_MatchBT]
-    elif(is_Owner(user_id) and (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id))):
-        buttons = [join_MatchBT, leave_MatchBT, leave_MatchTeam_BT]
-    elif(is_Owner(user_id) and not (isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id)) and not both_teams):
-        buttons = [join_MatchBT, leave_MatchBT, join_MatchTeam_BT] 
-    else:
-        buttons = []
-    buttons.append(homeTeamBT)
+
+    
+    # four conditions
+    # [1] member of participating team
+    # [2] team slot open
+    # [3] owner of a team in general
+    # [4] part of given match
+    # [4] implies [1]
+    isPartOfTeam = isPartofTeamID(user_id, team1_id) or isPartofTeamID(user_id, team2_id)
+    isSlotOpen = matchObj['team1'] == None or matchObj['team2'] == None
+    isOwnerOfTeam = is_Owner(user_id)   
+    isPartOfMatch = user_id in matchObj['roster1'] or user_id in matchObj['roster2']
+    # defining all buttons as j_p, j_t, l_p, l_t we can specify six cases:
+    # j_p
+    # j_p and l_t
+    # j_t
+    # l_p
+    # l_p and l_t
+    # l_t 
+    # now we have to define conditions which imply the six cases:                                                                                                                                                                                                  
+    # case 1
+    if (not isPartOfMatch and isPartOfTeam and not isOwnerOfTeam):
+        buttons = [joinMatchAsPlayer_BT]
+    # case 2
+    elif(not isPartOfMatch and isPartOfTeam and isOwnerOfTeam):
+        buttons = [joinMatchAsPlayer_BT, leaveMatchAsTeam_BT]
+    # case 3
+    elif(isOwnerOfTeam and not isPartOfTeam and isSlotOpen):
+        buttons = [joinMatchAsTeam_BT]
+    # case 4
+    elif(isPartOfMatch and not isOwnerOfTeam):
+        buttons = [leaveMatchAsPlayer_BT]
+    # case 5
+    elif(isPartOfMatch and isOwnerOfTeam):
+        buttons = [leaveMatchAsPlayer_BT, leaveMatchAsTeam_BT]
+    # case 6
+    elif(not isPartOfMatch and isOwnerOfTeam):
+        buttons = [leaveMatchAsTeam_BT]
+    buttons.append(homeBT)
     row = interactions.ActionRow(components = buttons) 
     return embed, row
+
+def getMatchIdentifierByEmbed(messageObj):
+    teamNameInfo = messageObj['title']
+    teamNames = teamNameInfo.split("vs.")
+    team1Name = teamNames[0].replace(" ", "")    
+    team2Name = teamNames[1].replace(" ", "")
+    #lower case first letter
+    team1Name = team1Name[0].lower() + team1Name[1:]
+    team2Name = team2Name[0].lower() + team2Name[1:]
+    #find scrim match with the two given team names
+    team1_id = getTeamByTeamName(team1Name)
+    team2_id = getTeamByTeamName(team2Name)
+    #find unique match by comparing datetime
+    datetimeInfo = messageObj['description'].replace(" ", "")
+    datetimeInfo = datetimeInfo.split("Am")[1].split("um")
+    datetimeStr =' '.join(datetimeInfo)        
+    datetimeObj = datetime.datetime.strptime(datetimeStr, '%m/%d/%Y %H:%M:%S')
+    if(team1_id != None):
+        team1_id = team1_id['_id']
+    if(team2_id != None):
+        team2_id = team2_id['_id']
+    return team1_id, team2_id, datetimeObj
     
 def create_team(author, team_name):
     disc_name = author._json['user']['username']
@@ -544,11 +594,11 @@ def create_match(team_id, datetime):
                  "roster2": []}
 
     match_collection.insert_one(new_match)
-    matchObj = getMatchbyTeamIDs(team_id, None)
+    matchObj = getMatchByTeamIDsAndDateTime(team_id, None, datetime)
     return matchObj
 
 
-def get_all_matches():
+def getAllMatches():
     matchObjs = match_collection.find()
     # verify that the given team name exists
     matches = []
@@ -584,25 +634,30 @@ def get_match(author, team_name):
 #return matchObj
 #players_t1 summonername_vector of team one (if available)
 #players_t2 summonername_vector of team two (if available)
-def get_match_byID(match_id):
+def getMatchById(match_id):
     matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
     # verify that the author is not already part of one of the rosters
-    players_t1 = []
-    players_t2 = []
-    p_1 = []
-    p_2 = []
-    for p_id in matchObj['roster1']:
-        userObj = collection.find_one({"discord_id": p_id})
-        p_1.append(userObj['summoner_name'])
-    players_t1.append(p_1)
-    for p_id in matchObj['roster2']:
-        userObj = collection.find_one({"discord_id": p_id})
-        p_2.append(userObj['summoner_name'])
-    players_t2.append(p_2)
-    return {"match": matchObj, "players_t1": players_t1, "players_t2": players_t2}
+    # players_t1 = []
+    # players_t2 = []
+    # p_1 = []
+    # p_2 = []
+    # for p_id in matchObj['roster1']:
+    #     userObj = collection.find_one({"discord_id": p_id})
+    #     p_1.append(userObj['summoner_name'])
+    # players_t1.append(p_1)
+    # for p_id in matchObj['roster2']:
+    #     userObj = collection.find_one({"discord_id": p_id})
+    #     p_2.append(userObj['summoner_name'])
+    # players_t2.append(p_2)
+    return matchObj
+
+def removeMatchById(match_id):
+    match_collection.delete_one({"_id": ObjectId(match_id)})
+
+def clearMatchCollection():
+    match_collection.delete_many({})
 
 def join_match_asTeam(user_id, match_id):
-    # check if the author is owner of a team
     matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
     matchDict = ""
     # check that the team has not already entered the scrim    
@@ -616,83 +671,61 @@ def join_match_asTeam(user_id, match_id):
     if (matchObj['team1'] == ""):
         match_collection.update_one({"_id": ObjectId(match_id)},
                                     {"$set": {"team1": teamObj['name']}}) 
-        matchDict  = get_match_byID(match_id) | {"status": "success"}
+        matchDict = getMatchById(match_id)
     if (matchObj['team2'] == ""):
         match_collection.update_one({"_id": ObjectId(match_id)},
                                     {"$set": {"team2": teamObj['name']}}) 
-        matchDict  = get_match_byID(match_id) | {"status": "success"}
+        matchDict = getMatchById(match_id) 
     return matchDict
 
 
 def join_match_asPlayer(user_id, match_id):
-    authorObj = collection.find_one({"discord_id": user_id})
-    # here author['id'] as we obtain the author object from the reaction object
-    # check if the author is part of one of the teams
-    # how is this implemented in the most efficient way -- given the scrim _id verify that the author is either in team1 or team2
-    # the roster recruiting starts when two teams have entered
     matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
-    # verify that the author is not already part of one of the rosters
-    players_t1 = []
-    players_t2 = []
-    p_1 = []
-    p_2 = []
-    if matchObj is not None:        
-        if (user_id in matchObj['roster1'] or user_id in matchObj['roster2']):
-            return {'status': 'already_part_of_it'}
-    else:
-        return {'status': 'match_notfound'}
-    matchDict = get_match_byID(match_id)
-    team1_Obj = teams_collection.find_one({"_id": matchDict['match']['team1'], "member_ids": {"$in": [user_id]}})
-    team2_Obj = teams_collection.find_one({"_id": matchDict['match']['team2'], "member_ids": {"$in": [user_id]}})
+    team1_Obj = teams_collection.find_one({"_id": matchObj['team1'], "member_ids": {"$in": [user_id]}})
+    team2_Obj = teams_collection.find_one({"_id": matchObj['team2'], "member_ids": {"$in": [user_id]}})
     if (team1_Obj is not None):
         match_collection.update_one({"_id": ObjectId(match_id)},
-                                    {"$push": {"roster1": user_id}}) 
-        matchDict['players_t1'][0].append(authorObj['summoner_name'])
-        return matchDict
+                                    {"$push": {"roster1": user_id}})
+        matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
+        return matchObj
     elif (team2_Obj is not None):
         match_collection.update_one({"_id": ObjectId(match_id)},
-                                    {"$push": {"roster2": user_id}})  
-        matchDict['players_t2'].append(authorObj['summoner_name'])
-        return matchDict
-    else:
-        return {"status": "no_member"}
+                                    {"$push": {"roster2": user_id}})
+        matchObj = match_collection.find_one({"_id": ObjectId(match_id)})  
+        return matchObj
 
 def leave_match_asTeam(user_id, match_id):
-    # check if the author is owner of a team
     matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
-    # check that the team has already entered the scrim    
     teamObj = teams_collection.find_one({"owner_id": user_id})
+
     if (teamObj is not None and matchObj is not None):
         if (matchObj['team1'] == teamObj['_id']):
             match_collection.update_one({"_id": ObjectId(match_id)},
-                                        {"$set": {"team1": ""}})
-            match = get_match_byID(match_id)
-            return match
+                                        {"$set": {"team1": None}})
+            matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
+            if (matchObj['team1'] == None and matchObj['team2'] == None):
+                match_collection.delete_one({"_id": ObjectId(match_id)})
+                return None            
         if (matchObj['team2'] == teamObj['_id']):
             match_collection.update_one({"_id": ObjectId(match_id)},
-                                        {"$set": {"team2": ""}})
-            match = get_match_byID(match_id)
-            return match
-    return {"status": "fail"}
+                                        {"$set": {"team2": None}})
+            matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
+            if (matchObj['team1'] == None and matchObj['team2'] == None):
+                match_collection.delete_one({"_id": ObjectId(match_id)})
+                return None
+    return matchObj
+    
 
 def leave_match_asPlayer(user_id, match_id):
-    # here author['id'] as we obtain the author object from the reaction object
-    # check if the author is part of one of the teams
-    # how is this implemented in the most efficient way -- given the scrim _id verify that the author is either in team1 or team2
-    # the roster recruiting starts when two teams have entered
-    matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
-    # verify that the author is not already part of one of the rosters
-    if matchObj is not None:        
-        if (user_id in matchObj['roster1']):
-            match_collection.update_one({"_id": ObjectId(match_id)},
-                            {"$pull": {"roster1": user_id}})  
-            match = get_match_byID(match_id)
-            return match
-        if (user_id in matchObj['roster2']):
-            match_collection.update_one({"_id": ObjectId(match_id)},
-                            {"$pull": {"roster2": user_id}})  
-            match = get_match_byID(match_id)
-            return match
-        return {'status': 'fail'}
-    else:
-        return {'status': 'fail'}
+    matchObj = match_collection.find_one({"_id": ObjectId(match_id)})     
+    if (user_id in matchObj['roster1']):
+        match_collection.update_one({"_id": ObjectId(match_id)},
+                        {"$pull": {"roster1": user_id}})  
+        matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
+        return matchObj
+    if (user_id in matchObj['roster2']):
+        match_collection.update_one({"_id": ObjectId(match_id)},
+                        {"$pull": {"roster2": user_id}})  
+        matchObj = match_collection.find_one({"_id": ObjectId(match_id)})
+        return matchObj
+

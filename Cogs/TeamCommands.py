@@ -1,4 +1,5 @@
 from code import interact
+from turtle import home
 from attr import field
 import discord
 from discord.ext import commands
@@ -40,6 +41,7 @@ class TeamCommands(interactions.Extension):
                 custom_id="show_myTeam"
             )
         existTeams = len(db.get_all_teams()) == 0
+        existMatches = len(db.getAllMatches()) == 0
         #TODO for existMatches
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
@@ -51,7 +53,7 @@ class TeamCommands(interactions.Extension):
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Matches",
             custom_id="show_matches",
-            disabled=False
+            disabled=existMatches
         )
         if (db.is_Owner(user_id)):
             create_matchBT = interactions.Button(
@@ -80,7 +82,7 @@ class TeamCommands(interactions.Extension):
                 custom_id="show_myTeam"
             )
         existTeams = len(db.get_all_teams()) == 0
-        existMatches = len(db.get_all_matches()) == 0
+        existMatches = len(db.getAllMatches()) == 0
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
@@ -226,11 +228,13 @@ class TeamCommands(interactions.Extension):
     #Show all Matches
     @interactions.extension_component("show_matches")
     async def show_matches(self, ctx):
-        matchObjects = db.get_all_matches()
+        #db.clearMatchCollection()
+        matchObjects = db.getAllMatches()
         user_id = int(ctx.author._json['user']['id'])
-        embeds = []
-        row = []
         TeamOptionList = []
+        if(len(matchObjects) == 0):
+            await ctx.defer(edit_origin=True)
+            await ctx.edit("List of matches is empty!")
         for m in matchObjects:
             invited = False
             if user_id in m['roster1'] or user_id in m['roster2']:
@@ -253,6 +257,7 @@ class TeamCommands(interactions.Extension):
             )   
             await ctx.defer(edit_origin=True)
             await ctx.edit("", embeds=[], components=[SMenu])
+        
 
     #show the team with the given id
     @interactions.extension_component("showMatchWithID")
@@ -342,21 +347,9 @@ class TeamCommands(interactions.Extension):
     @interactions.extension_component("leave_Match")
     async def leave_match(self, ctx):
         user_id = int(ctx.author._json['user']['id'])
-        teamNameInfo = ctx._json['message']['embeds'][0]['description']
-        teamNames = teamNameInfo.split("(")[1]
-        team1Name = teamNames.split("-")[0][0:-1]
-        #cut out last element ")"
-        team2Name = teamNames.split("-")[1][1:-1]
-        #find scrim match with the two given team names
-        team1_id = db.getTeamByTeamName(team1Name)
-        team2_id = db.getTeamByTeamName(team2Name)
-        if(team1_id != None):
-            team1_id = team1_id['_id']
-        if(team2_id != None):
-            team2_id = team2_id['_id']
-
-        matchObj = db.getMatchbyTeamIDs(team1_id, team2_id)
-        db.leave_match_asPlayer(user_id, matchObj['_id'])
+        team1_id, team2_id, datetimeObj = db.getMatchIdentifierByEmbed(ctx._json['message']['embeds'][0])
+        matchObj =  db.getMatchByTeamIDsAndDateTime(team1_id, team2_id, datetimeObj)
+        matchObj = db.leave_match_asPlayer(user_id, matchObj['_id'])
         embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
@@ -377,27 +370,15 @@ class TeamCommands(interactions.Extension):
             await ctx.defer(edit_origin=True)
             await ctx.edit("Something went wrong.")
 
-    @interactions.extension_component("join_Match")
-    async def join_match(self, ctx):
+    @interactions.extension_component("join_Match_asPlayer")
+    async def joinMatchAsPlayer(self, ctx):
         #we can only reach this part of code, if the given match has two teams that have joined
         #what if one team leaves and rejoins? should the set of possible users stay stored for this specific combination? 
         #currently not considered
         user_id = int(ctx.author._json['user']['id'])
-        teamNameInfo = ctx._json['message']['embeds'][0]['description']
-        teamNames = teamNameInfo.split("(")[1]
-        team1Name = teamNames.split("-")[0][0:-1]
-        #cut out last element ")"
-        team2Name = teamNames.split("-")[1][1:-1]
-        #find scrim match with the two given team names
-        team1_id = db.getTeamByTeamName(team1Name)
-        team2_id = db.getTeamByTeamName(team2Name)
-        if(team1_id != None):
-            team1_id = team1_id['_id']
-        if(team2_id != None):
-            team2_id = team2_id['_id']
-
-        matchObj = db.getMatchbyTeamIDs(team1_id, team2_id)
-        db.join_match_asPlayer(user_id, matchObj['_id'])
+        team1_id, team2_id, datetimeObj = db.getMatchIdentifierByEmbed(ctx._json['message']['embeds'][0])
+        matchObj =  db.getMatchByTeamIDsAndDateTime(team1_id, team2_id, datetimeObj)
+        matchObj = db.join_match_asPlayer(user_id, matchObj['_id'])
         #what is displayed the same as before so we want to get the embed as bevore in joni team
         embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
@@ -407,21 +388,20 @@ class TeamCommands(interactions.Extension):
     @interactions.extension_component("join_Match_asTeam")
     async def join_match_asTeam(self, ctx):
         user_id = int(ctx.author._json['user']['id'])
-        teamNameInfo = ctx._json['message']['embeds'][0]['description']
-        teamNames = teamNameInfo.split("(")[1]
-        team1Name = teamNames.split("-")[0][0:-1]
-        #cut out last element ")"
-        team2Name = teamNames.split("-")[1][1:-1]
-        #find scrim match with the two given team names
-        team1_id = db.getTeamByTeamName(team1Name)
-        team2_id = db.getTeamByTeamName(team2Name)
-        if(team1_id != None):
-            team1_id = team1_id['_id']
-        if(team2_id != None):
-            team2_id = team2_id['_id']
+        team1_id, team2_id, datetimeObj = db.getMatchIdentifierByEmbed(ctx._json['message']['embeds'][0])
+        matchObj =  db.getMatchByTeamIDsAndDateTime(team1_id, team2_id, datetimeObj)
+        matchObj = db.join_match_asTeam(user_id, matchObj['_id'])        
+        embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
+        await ctx.defer(edit_origin=True)
+        await ctx.edit(embeds=[embed], components=row)
 
-        matchObj = db.getMatchbyTeamIDs(team1_id, team2_id)
-        db.join_match_asTeam(user_id, matchObj['_id'])
+    #Leave Match As Player
+    @interactions.extension_component("leave_Match_asPlayer")
+    async def leave_match_asPlayer(self, ctx):
+        user_id = int(ctx.author._json['user']['id'])
+        team1_id, team2_id, datetimeObj = db.getMatchIdentifierByEmbed(ctx._json['message']['embeds'][0])
+        matchObj = db.getMatchByTeamIDsAndDateTime(team1_id, team2_id, datetimeObj)
+        matchObj = db.leave_match_asPlayer(user_id, matchObj['_id'])
         #what is displayed the same as before so we want to get the embed as bevore in joni team
         embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
@@ -431,29 +411,13 @@ class TeamCommands(interactions.Extension):
     @interactions.extension_component("leave_Match_asTeam")
     async def leave_match_asTeam(self, ctx):
         user_id = int(ctx.author._json['user']['id'])
-        teamNameInfo = ctx._json['message']['embeds'][0]['title']
-        teamNames = teamNameInfo.split("vs.")
-        team1Name = teamNames[0].replace(" ", "")    
-        team2Name = teamNames[1].replace(" ", "")
-        #lower case first letter
-        team1Name = team1Name[0].lower() + team1Name[1:]
-        team2Name = team2Name[0].lower() + team2Name[1:]
-        #find scrim match with the two given team names
-        team1_id = db.getTeamByTeamName(team1Name)
-        team2_id = db.getTeamByTeamName(team2Name)
-        #find unique match by comparing datetime
-        datetimeInfo = ctx._json['message']['embeds'][0]['description'].replace(" ", "")
-        datetimeInfo = datetimeInfo.split("Am")[1].split("um")
-        datetimeStr =' '.join(datetimeInfo)        
-        datetimeObj = datetime.datetime.strptime(datetimeStr, '%m/%d/%Y %H:%M:%S')
-        if(team1_id != None):
-            team1_id = team1_id['_id']
-        if(team2_id != None):
-            team2_id = team2_id['_id']
-
-        matchObj = db.getMatchbyTeamIDs(team1_id, team2_id)
-        db.leave_match_asTeam(user_id, matchObj['_id'])
+        team1_id, team2_id, datetimeObj = db.getMatchIdentifierByEmbed(ctx._json['message']['embeds'][0])
+        matchObj = db.getMatchByTeamIDsAndDateTime(team1_id, team2_id, datetimeObj)
+        match = db.leave_match_asTeam(user_id, matchObj['_id'])
         #what is displayed the same as before so we want to get the embed as bevore in joni team
+        if(match == None):
+            await self.home_button(ctx)
+            return 
         embed, row = db.get_Match_Embed_Buttons(matchObj, user_id)
         await ctx.defer(edit_origin=True)
         await ctx.edit(embeds=[embed], components=row)
@@ -477,7 +441,8 @@ class TeamCommands(interactions.Extension):
                 label="Team Hub",
                 custom_id="show_myTeam"
             )
-        existTeams = len(db.get_all_teams()) > 0
+        existTeams = len(db.get_all_teams()) == 0
+        existMatches = len(db.getAllMatches()) == 0
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
@@ -488,7 +453,7 @@ class TeamCommands(interactions.Extension):
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Matches",
             custom_id="show_matches",
-            disabled=False
+            disabled=existMatches,
         )
         if (db.is_Owner(user_id)):
             create_matchBT = interactions.Button(
