@@ -2,11 +2,11 @@ import os
 import uuid
 from numpy import true_divide
 from pymongo import MongoClient
-import logging
+
 from dotenv import load_dotenv
 import requests
 from bson.objectid import ObjectId
-# client = MongoClient(os.getenv('MONGO_URI'))
+
 from db.db_response import *
 import db.lolapi_data as lol
 import interactions
@@ -29,15 +29,13 @@ def unlink_command(author):
 def link_command(summoner_name, author):
     disc_name = str(author)
     disc_id = author.id
-
     result = collection.find_one({"discord_id": disc_id})
 
     if result is not None:
         if not result['verified']:
             check_verification(author)
         if result['verified']:
-            return LinkResponse(status="verified", summoner_name=result['summoner_name'])
-        # return {"status": "created", "verify": result['verification_id'], "summoner_name": result['summoner_name']}
+            return LinkResponse(status="verified", summoner_name=result['summoner_name'])        
         return LinkResponse(status="created", verification_id=result['verification_id'],
                             summoner_name=result['summoner_name'])
 

@@ -1,39 +1,59 @@
-import discord
-from discord.ext import commands
+
 import scrimdb as db
-import message_helper as msg
-import logging
+import interactions
 
+class UserCommands(interactions.Extension):
+    def __init__(self, client):
+        self.client: interactions.Client = client
 
-class UserCommands(commands.Cog, name="UserCommands"):
-    def __init__(self, bot):
-        self.bot = bot
-        self.index = 0
-
-    @commands.command(name="unlink")
+    
+    @interactions.extension_command(
+        name="unlink",
+        description="Unlink your Riot Account!",
+        scope=271639846307627008,
+    )
     async def unlink(self, ctx):
         dels = db.unlink_command(ctx.author)
-        await ctx.author.send(f"Removed Links: {dels}")
+        await ctx.send(f"Removed Links: {dels}")
 
-    @commands.command(name="link",
-                      usage="<LeagueName>")
-    async def link(self, ctx, arg):
-        db_response = db.link_command(arg, ctx.author)
-        await ctx.author.send(db_response.discord_msg())
+    @interactions.extension_command(
+        name="link",
+        description="Link your Riot Account!",
+        scope=271639846307627008,
+    )
+    async def link(self, ctx):
+        SummonerNameInput = interactions.TextInput(
+            style=interactions.TextStyleType.SHORT,
+            label="Enter your summoner name:",
+            custom_id="text_input_response",
+            min_length=1,
+            max_length=20,
+        )
+        modalSummonerNameInput = interactions.Modal(
+            title="Summoner Name",
+            custom_id="link_account",
+            components=[SummonerNameInput],
+        )
+        await ctx.popup(modalSummonerNameInput)
 
-    @link.error
-    async def link_error(self, ctx, error):
-        if isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
-            await ctx.author.send(f"Error: You need to provide your League Summoner Name\nUsage: !link <SummonerName>")
+    @interactions.extension_modal("link_account") 
+    async def link_user(self, ctx, response: str):
+        db.link_command(response, ctx.author)
+        await ctx.send("Successful account linkage", ephemeral=False)
 
-    @commands.command(name="rankedinfo")
+    
+    @interactions.extension_command(
+        name="ranked_info",
+        description="Show ranked info of linked Riot Account!",
+        scope=271639846307627008,
+    )
     async def rankedinfo(self, ctx):
         db_response = db.rankedinfo_command(ctx.author)
-        await ctx.author.send(db_response.discord_msg())
+        await ctx.send(db_response.discord_msg())
 
 
 
 
 
-def setup(bot):
-    bot.add_cog(UserCommands(bot))
+def setup(client):
+    UserCommands(client)

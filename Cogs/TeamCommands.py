@@ -1,10 +1,10 @@
 from code import interact
 from turtle import home
 from attr import field
-import discord
+
 from discord.ext import commands
 import scrimdb as db
-import logging
+
 import interactions
 from bson.objectid import ObjectId
 import datetime
@@ -22,7 +22,7 @@ class TeamCommands(interactions.Extension):
 
     #team overview command
     @interactions.extension_command(
-        name="team_overview",
+        name="scrimtool",
         description="Scrim Tool",
         scope=271639846307627008,
     )
@@ -42,7 +42,6 @@ class TeamCommands(interactions.Extension):
             )
         existTeams = len(db.get_all_teams()) == 0
         existMatches = len(db.getAllMatches()) == 0
-        #TODO for existMatches
         show_TeamsBT = interactions.Button(
             style=interactions.ButtonStyle.SECONDARY,
             label="Show Teams",
